@@ -4,6 +4,7 @@
  *
  * `SCHICHTWECHSEL_STUB=1` → StubBackend mit Testdaten (UI ohne Server/Spiel).
  */
+import { existsSync } from 'node:fs';
 import { app, safeStorage } from 'electron';
 import type { BackendContext, LauncherBackend } from './backend';
 import { consoleLogger, nodeFileSystem, runCommand, systemClock } from './node-ports';
@@ -48,6 +49,7 @@ export function createBackend(context: BackendContext): LauncherBackend {
     env: {
       localAppData: process.env.LOCALAPPDATA ?? null,
       programData: process.env.PROGRAMDATA ?? null,
+      driveRoots: windowsDriveRoots(),
     },
     openExternal: (url) => context.openExternal(url),
     writeClipboard: (text) => context.writeClipboard(text),
@@ -61,4 +63,15 @@ export function createBackend(context: BackendContext): LauncherBackend {
     if (cloud !== undefined) deps.detectSteamCloudEnabled = cloud;
   });
   return new LazyEngineBackend(ready, deps);
+}
+
+/** Vorhandene Laufwerke C: bis Z: (nur Windows), für die Suche nach Epic-Spielordnern. */
+function windowsDriveRoots(): string[] {
+  if (process.platform !== 'win32') return [];
+  const roots: string[] = [];
+  for (let c = 'C'.charCodeAt(0); c <= 'Z'.charCodeAt(0); c++) {
+    const root = `${String.fromCharCode(c)}:\\`;
+    if (existsSync(root)) roots.push(root);
+  }
+  return roots;
 }

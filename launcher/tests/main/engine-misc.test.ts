@@ -139,7 +139,7 @@ describe('SyncEngine – Anmeldung, Anwesenheit, Verlauf, Einstellungen', () => 
     });
     expect(h.state.sessionCodeAvailable).toBe(false);
     await h.engine.startGameOnly();
-    expect(h.opened).toEqual(['com.epicgames.launcher://apps/Crab?action=launch&silent=true']);
+    expect(h.opened).toEqual(['com.epicgames.launcher://apps/CrabEA?action=launch&silent=true']);
   });
 
   it('Karte nach erfolgreichem Upload erzeugt und hochgeladen; Fehler stören den Sync nicht', async () => {

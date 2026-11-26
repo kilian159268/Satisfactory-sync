@@ -17,17 +17,48 @@ export const STEAM_APP_ID = '526870';
 export const STEAM_LAUNCH_URI = `steam://rungameid/${STEAM_APP_ID}`;
 
 /**
- * Start über Epic. ANNAHME (Kapitel 14, erster Punkt): `com.epicgames.launcher://apps/<AppName>`
- * startet das Spiel ohne sichtbares Launcher-Fenster. Der AppName kommt aus dem Epic-Manifest des
- * installierten Spiels (normale Version `Crab`, Experimental hat einen eigenen Namen); ohne Manifest
- * wird `Crab` genommen.
+ * Start über Epic. ANNAHME (Kapitel 14, erster Punkt): `com.epicgames.launcher://apps/…` startet das
+ * Spiel ohne sichtbares Launcher-Fenster. Kennung aus dem installierten Spiel (ProgramData-Manifest
+ * oder `.egstore\*.mancpn` im Spielordner); ohne beides wird `CrabEA` genommen.
  */
-export const EPIC_DEFAULT_APP_NAME = 'Crab';
-export const epicLaunchUri = (appName: string): string =>
-  `com.epicgames.launcher://apps/${encodeURIComponent(appName)}?action=launch&silent=true`;
-export const EPIC_LAUNCH_URI = epicLaunchUri(EPIC_DEFAULT_APP_NAME);
-/** Erlaubte Zeichen eines AppName aus dem Manifest (alles andere → Standard). */
+// GEPRÜFT 2026-11-26 an einer echten Epic-Installation: `.egstore\*.mancpn` im Spielordner enthält
+// CatalogNamespace `crab`, CatalogItemId `b915dfe8dcf74770841c82a4162dc954`, AppName `CrabEA`.
+// Der per-Benutzer installierte Epic Launcher legt KEINE Manifeste unter ProgramData ab.
+export const EPIC_DEFAULT_APP_NAME = 'CrabEA';
+export const EPIC_CATALOG_NAMESPACE = 'crab';
+/** Erlaubte Zeichen für AppName, Namespace und ItemId (alles andere wird nicht übernommen). */
 export const EPIC_APP_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
+export interface EpicLaunchTarget {
+  appName: string;
+  namespace?: string | undefined;
+  itemId?: string | undefined;
+}
+
+/** Vollständige Form `apps/<namespace>:<itemId>:<appName>`, wenn bekannt; sonst nur `apps/<appName>`. */
+export function epicLaunchUri(target: EpicLaunchTarget): string {
+  const { appName, namespace, itemId } = target;
+  const ok = (v: string | undefined): v is string =>
+    v !== undefined && EPIC_APP_NAME_PATTERN.test(v);
+  const app = ok(appName) ? appName : EPIC_DEFAULT_APP_NAME;
+  const id = ok(namespace) && ok(itemId) ? `${namespace}%3A${itemId}%3A${app}` : app;
+  return `com.epicgames.launcher://apps/${id}?action=launch&silent=true`;
+}
+export const EPIC_LAUNCH_URI = epicLaunchUri({ appName: EPIC_DEFAULT_APP_NAME });
+
+/**
+ * Wo Epic-Spiele liegen können, wenn es keine Manifeste unter ProgramData gibt: Unterordner dieser
+ * Pfade (je Laufwerk) werden auf `.egstore\*.mancpn` geprüft.
+ */
+export const EPIC_SCAN_SUBPATHS: readonly (readonly string[])[] = [
+  [],
+  ['Program Files', 'Epic Games'],
+  ['Epic Games'],
+  ['Games'],
+  ['Spiele'],
+];
+/** Root-Exe einer echten Epic-Installation (andere Kopien werden nachrangig behandelt). */
+export const EPIC_ROOT_EXE = 'FactoryGameEGS.exe';
 
 // ---------------------------------------------------------------- Prozess (Kapitel 14, zweiter Punkt)
 
@@ -76,6 +107,11 @@ export const EPIC_DISPLAY_NAME = 'Satisfactory';
 
 /** Ordner der Exe relativ zum Spielordner. */
 export const GAME_BINARIES_DIR = ['FactoryGame', 'Binaries', 'Win64'] as const;
+/**
+ * Orte der `.version`-Datei, erster Treffer gewinnt. GEPRÜFT 2026-11-26 (Build 463028, Epic):
+ * Exe und `.version` liegen unter `Engine\Binaries\Win64`.
+ */
+export const GAME_BINARIES_DIRS = [['Engine', 'Binaries', 'Win64'], GAME_BINARIES_DIR] as const;
 
 /**
  * ANNAHME: Neben der Exe liegt eine Unreal-`.version`-Datei (JSON) mit `Changelist`, und dieser
