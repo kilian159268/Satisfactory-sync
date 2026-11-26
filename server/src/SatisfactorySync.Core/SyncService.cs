@@ -402,7 +402,9 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
                       session_name, $u, $t, 'import', $base, id, map_json FROM versions WHERE id = $src
                     RETURNING id
                     """, ("$num", number), ("$u", user.Id), ("$t", now), ("$base", ReadWorld(c, tx).HeadId), ("$src", versionId));
-                c.Exec(tx, "UPDATE world SET head_version_id = $v WHERE id = 1", ("$v", id));
+                // Der Head bestimmt die Welt: auch der Sessionname folgt der zurückgeholten Version
+                // (wichtig, wenn noch keine normale Version existierte und der Name leer war).
+                c.Exec(tx, "UPDATE world SET head_version_id = $v, session_name = $s WHERE id = 1", ("$v", id), ("$s", src.SessionName));
                 // Eine abgelaufene Lease darf nach dem Zurückholen nicht wiederbelebt werden.
                 c.Exec(tx, "DELETE FROM leases WHERE id = 1");
                 Audit(c, tx, user.Id, "version_restored", $"from={src.Label} to={number}");
@@ -449,7 +451,7 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
 
             if (owner != user.Id)
             {
-                return Errors.Invalid("not_uploader", "Nur wer die Version hochgeladen hat, kann die Karte ablegen.");
+                return Errors.NotUploader;
             }
 
             c.Exec(tx, "UPDATE versions SET map_json = $j WHERE id = $v", ("$j", json), ("$v", versionId));

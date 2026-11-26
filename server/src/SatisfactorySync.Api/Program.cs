@@ -39,15 +39,32 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(
+        new ErrorBody("rate_limited", "Zu viele Anfragen. Bitte kurz warten.", null), ct));
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
-        RateLimitPartition.GetTokenBucketLimiter(
+    {
+        var sync = ctx.RequestServices.GetRequiredService<SyncOptions>();
+        return RateLimitPartition.GetTokenBucketLimiter(
             ctx.User.Identity?.Name ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
-            _ => new TokenBucketRateLimiterOptions { TokenLimit = 120, TokensPerPeriod = 60, ReplenishmentPeriod = TimeSpan.FromSeconds(30), QueueLimit = 0 }));
-    o.AddPolicy("redeem", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+            _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = sync.RequestBurst,
+                TokensPerPeriod = Math.Max(1, sync.RequestsPerMinute / 2),
+                ReplenishmentPeriod = TimeSpan.FromSeconds(30),
+                QueueLimit = 0,
+            });
+    });
+    o.AddPolicy("redeem", ctx =>
+    {
+        var sync = ctx.RequestServices.GetRequiredService<SyncOptions>();
+        return RateLimitPartition.GetFixedWindowLimiter(
+            ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = sync.RedeemPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+    });
 });
 
+// Auch in Development keine Ausnahmeseite bei unlesbaren Anfragen, sondern 400 im API-Fehlerformat.
+builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = false);
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
 
 var app = builder.Build();
@@ -58,6 +75,22 @@ if (command is not null)
 }
 
 app.UseForwardedHeaders();
+
+// Antworten ohne Inhalt (z. B. unlesbares JSON, unbekannte Route) bekommen dasselbe Fehlerformat wie der Rest der API.
+app.UseStatusCodePages(ctx =>
+{
+    var status = ctx.HttpContext.Response.StatusCode;
+    var (code, message) = status switch
+    {
+        StatusCodes.Status400BadRequest => ("bad_request", "Anfrage ist ungültig."),
+        StatusCodes.Status404NotFound => ("not_found", "Gibt es nicht."),
+        StatusCodes.Status405MethodNotAllowed => ("method_not_allowed", "Methode nicht erlaubt."),
+        StatusCodes.Status413PayloadTooLarge => ("too_large", "Datei ist zu groß."),
+        StatusCodes.Status415UnsupportedMediaType => ("unsupported_media_type", "Falscher Inhaltstyp."),
+        _ => ("error", "Fehler auf dem Server."),
+    };
+    return ctx.HttpContext.Response.WriteAsJsonAsync(new ErrorBody(code, message, null), ctx.HttpContext.RequestAborted);
+});
 var pathBase = app.Configuration["Sync:PathBase"];
 if (!string.IsNullOrEmpty(pathBase))
 {

@@ -20,7 +20,7 @@ public sealed class FakeDiskSpace : IDiskSpace
 }
 
 /// <summary>Ein echter Server (In-Memory-HTTP) mit eigenem Datenordner, steuerbarer Uhr und Speicherplatz.</summary>
-public sealed class SyncServer : WebApplicationFactory<Program>
+public sealed class SyncServer(Action<SyncOptions>? configure = null) : WebApplicationFactory<Program>
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -30,19 +30,32 @@ public sealed class SyncServer : WebApplicationFactory<Program>
 
     public FakeDiskSpace Disk { get; } = new();
 
+    /// <summary>Optionaler Pfad-Präfix (Konfiguration <c>Sync:PathBase</c>).</summary>
+    public string? PathBase { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        if (PathBase is not null)
+        {
+            builder.UseSetting("Sync:PathBase", PathBase);
+        }
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<SyncOptions>();
-            services.AddSingleton(new SyncOptions { DataDir = DataDir });
+            // Viele Spieler pro Test: das Einlöse-Limit wird nur in einem eigenen Test geprüft.
+            var options = new SyncOptions { DataDir = DataDir, RedeemPerMinute = 10_000 };
+            configure?.Invoke(options);
+            services.AddSingleton(options);
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
             services.RemoveAll<IDiskSpace>();
             services.AddSingleton<IDiskSpace>(Disk);
         });
     }
+
+    public SyncOptions Options => Services.GetRequiredService<SyncOptions>();
 
     public async Task<HttpClient> UserAsync(string name)
     {
@@ -119,6 +132,14 @@ public static class ClientExtensions
 {
     public static async Task<JsonElement> JsonAsync(this HttpResponseMessage res) =>
         await res.Content.ReadFromJsonAsync<JsonElement>(SyncServer.Json);
+
+    public static async Task<JsonElement> WorldAsync(this HttpClient c) => await (await c.GetAsync("/api/world")).JsonAsync();
+
+    public static async Task<int> VersionCountAsync(this HttpClient c) => (await (await c.GetAsync("/api/versions")).JsonAsync()).GetArrayLength();
+
+    /// <summary>Id des Heads aus /api/world, 0 = keiner.</summary>
+    public static long HeadId(JsonElement world) =>
+        world.GetProperty("head").ValueKind == JsonValueKind.Null ? 0 : world.GetProperty("head").GetProperty("id").GetInt64();
 
     public static async Task<(long Token, long Head)> LeaseAsync(this HttpClient c)
     {

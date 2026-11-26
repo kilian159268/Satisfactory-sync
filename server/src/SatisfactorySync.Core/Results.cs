@@ -4,6 +4,7 @@ public enum ErrorKind
 {
     Invalid,
     Unauthorized,
+    Forbidden,
     NotFound,
     Conflict,
     Unprocessable,
@@ -74,6 +75,9 @@ public static class Errors
         new(ErrorKind.Unprocessable, "wrong_session", $"Falscher Spielstand „{actual}“, erwartet „{expected}“.", new { expected, actual });
 
     public static SyncError Invalid(string code, string message) => new(ErrorKind.Invalid, code, message);
+
+    public static readonly SyncError NotUploader =
+        new(ErrorKind.Forbidden, "not_uploader", "Nur wer die Version hochgeladen hat, kann die Karte ablegen.");
 
     public static readonly SyncError InviteInvalid =
         new(ErrorKind.Unauthorized, "invite_invalid", "Einladungscode ungültig oder schon benutzt.");
