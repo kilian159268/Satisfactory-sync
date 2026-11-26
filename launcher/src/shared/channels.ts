@@ -14,6 +14,7 @@ export const IPC = {
   getSettings: 'schichtwechsel:get-settings',
   updateSettings: 'schichtwechsel:update-settings',
   copySessionCode: 'schichtwechsel:copy-session-code',
+  createLinkCode: 'schichtwechsel:create-link-code',
   windowMinimize: 'schichtwechsel:window-minimize',
   windowClose: 'schichtwechsel:window-close',
 } as const;

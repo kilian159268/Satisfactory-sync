@@ -42,6 +42,7 @@ function err(status: number, error: string, message: string, details: unknown = 
 export class FakeServer {
   readonly tokens = new Map<string, string>(); // token → name
   readonly invites = new Map<string, boolean>(); // code → frei
+  readonly linkCodes = new Map<string, string>(); // Verknüpfungscode → Spielername
   lease: Lease | null = null;
   fencing = 0;
   versions: Version[] = [];
@@ -194,6 +195,13 @@ export class FakeServer {
       const req = JSON.parse(new TextDecoder().decode(body)) as { code: string; name: string };
       if (this.invites.get(req.code) !== true)
         return err(401, 'invite_invalid', 'Einladungscode ist ungültig oder schon benutzt.');
+      const linkedTo = this.linkCodes.get(req.code);
+      if (linkedTo !== undefined) {
+        this.invites.set(req.code, false);
+        const token = `token-${linkedTo}-${this.tokens.size}`;
+        this.tokens.set(token, linkedTo);
+        return json(200, { token, name: linkedTo, linked: true });
+      }
       if ([...this.tokens.values()].includes(req.name))
         return err(409, 'name_taken', 'Name ist schon vergeben.');
       this.invites.set(req.code, false);
@@ -205,6 +213,12 @@ export class FakeServer {
     if (user === null) return err(401, 'unauthorized', 'Nicht angemeldet.');
 
     if (method === 'GET' && path === '/api/me') return json(200, { name: user });
+    if (method === 'POST' && path === '/api/me/link-code') {
+      const code = `LINK-${user.toUpperCase()}-${this.linkCodes.size + 1}`;
+      this.invites.set(code, true);
+      this.linkCodes.set(code, user);
+      return json(200, { code, expiresAt: new Date(now + 24 * 3600 * 1000).toISOString() });
+    }
     if (method === 'GET' && path === '/api/world') {
       return json(200, {
         sessionName: this.sessionName,

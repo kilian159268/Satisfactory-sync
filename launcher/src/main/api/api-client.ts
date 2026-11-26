@@ -17,6 +17,7 @@ import {
   MeResponseSchema,
   RedeemResponseSchema,
   UploadResultSchema,
+  LinkCodeResponseSchema,
   VersionListSchema,
   VersionSchema,
   WorldResponseSchema,
@@ -25,6 +26,7 @@ import {
   type HeartbeatResponse,
   type HostInfo,
   type LeaseGrant,
+  type LinkCodeResponse,
   type MeResponse,
   type RedeemResponse,
   type UploadResult,
@@ -189,6 +191,10 @@ export class ApiClient {
       auth: false,
       body: { code, name },
     });
+  }
+
+  createLinkCode(): Promise<LinkCodeResponse> {
+    return this.json('POST', '/api/me/link-code', LinkCodeResponseSchema);
   }
 
   me(): Promise<MeResponse> {
