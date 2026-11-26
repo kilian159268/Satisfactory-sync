@@ -1,0 +1,72 @@
+# electron-builder: Windows-Installer (NSIS, x64) + Auto-Update über GitHub Releases (Plan 9, 11, 13/M5).
+# Aufruf immer mit `--config electron-builder.yml` (siehe `npm run dist`), weil package.json noch
+# einen eigenen `build`-Schlüssel hat, der sonst Vorrang hätte.
+appId: de.v3in.sync
+productName: V3in-sync
+copyright: Copyright © 2026 V3in
+
+directories:
+  output: release
+  buildResources: build
+
+# Nur der Build von electron-vite und package.json; Produktions-Abhängigkeiten (node_modules)
+# ergänzt electron-builder selbst. Reine Renderer-Pakete stecken schon im Vite-Bundle und
+# werden ausgelassen (der Main-Prozess lädt sie nie per require).
+files:
+  - out/**
+  - package.json
+  - '!node_modules/@fontsource/**'
+  - '!node_modules/react/**'
+  - '!node_modules/react-dom/**'
+  - '!node_modules/scheduler/**'
+asar: true
+# Der Karten-Worker (worker_threads) und sein Parser laufen außerhalb des asar,
+# damit der Worker seine Datei und die Bibliothek sicher laden kann (Plan 6.6).
+asarUnpack:
+  - out/main/map-worker.js
+  - node_modules/@etothepii/satisfactory-file-parser/**
+  - node_modules/pako/**
+# Keine nativen Produktions-Abhängigkeiten – @electron/rebuild ist nicht nötig.
+npmRebuild: false
+
+# Fuses (RunAsNode aus, ASAR-Integrität an, …) setzt und prüft der Hook.
+afterPack: ./build/after-pack.mjs
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  # Ohne Code-Signing (Plan 9): SmartScreen warnt beim ersten Start – für die Gruppe ok.
+  signAndEditExecutable: true
+  verifyUpdateCodeSignature: false
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  # Assistent statt Ein-Klick: Nutzer sieht, was passiert, Installation ohne Adminrechte
+  # pro Benutzer (%LOCALAPPDATA%\Programs\V3in-sync), Updates dann ohne UAC-Abfrage.
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: V3in-sync
+  runAfterFinish: true
+  # Journal, Cache und Quarantäne-Saves nie beim Deinstallieren löschen (CLAUDE.md: nichts löschen).
+  deleteAppDataOnUninstall: false
+  installerLanguages: [de_DE]
+  language: '1031'
+  multiLanguageInstaller: false
+  unicode: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  artifactName: V3in-sync-Setup-${version}.${ext}
+  uninstallDisplayName: V3in-sync
+
+publish:
+  provider: github
+  owner: kilian159268
+  repo: Satisfactory-sync
+  releaseType: release

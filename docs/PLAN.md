@@ -3,8 +3,8 @@
 Status: **Abgenommen, bereit zur Umsetzung.** Design-Regeln: [`DESIGN.md`](DESIGN.md),
 klickbarer Entwurf: [`design/launcher-entwurf.dc.html`](design/launcher-entwurf.dc.html).
 
-**Name (Arbeitstitel):** Schichtwechsel. **Logo:** V3in-Logo, orange eingefärbt (Datei folgt; bis dahin
-das Inline-SVG aus dem Entwurf).
+**Name:** V3in-sync (vorher Arbeitstitel „Schichtwechsel“; geändert 2026-11-26 nach dem Design-Entwurf des
+Betreibers). **Logo:** V3in-Logo, orange auf `#1C1D20` (`launcher/build/icon.png`).
 
 **Rahmen:** 4–5 Spieler, alle gleichberechtigt (kein Admin), **genau ein** gemeinsamer
 Spielstand, Windows-PCs mit Steam oder Epic, Server hinter nginx.
@@ -391,7 +391,9 @@ Kurzfassung:
   Seitenleiste rechts („Aktueller Stand“, „Gruppe“), Fußzeile (wer hostet, Serververbindung).
 - Reiter „Verlauf“ (Versionen, Zurückholen mit Bestätigung) und „Einstellungen“
   (Plattform, Spielstand-Ordner, Autostart).
-- Eigene Titelleiste (rahmenloses Fenster), Tray-Symbol, Mindestgröße 960 × 600.
+- Eigene Titelleiste (rahmenloses Fenster), Tray-Symbol, Startgröße 1100 × 680, Mindestgröße 820 × 540
+  (geändert 2026-11-26 nach dem Design-Entwurf „V3in-sync“; vorher 960 × 600). Bei schmalen Fenstern bricht
+  die Aktionsleiste um, der Hauptbereich scrollt.
 - Jeder Zustand aus 6.1 hat eine Ansicht im Entwurf; Ladezustände mit Spinner/Skeleton.
 
 **Im Entwurf noch zu klären:** Der Knopf „Session-Code kopieren“ setzt voraus, dass das Spiel einen

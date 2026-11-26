@@ -1,4 +1,4 @@
-# Satisfactory-sync („Schichtwechsel“)
+# Satisfactory-sync (Launcher „V3in-sync“)
 
 Launcher + Server, damit eine Gruppe von 4–5 Leuten Satisfactory ohne Dedicated Server spielt:
 Wer zuerst über den Launcher startet, wird Host und bekommt den neuesten Spielstand; danach

@@ -9,6 +9,8 @@ Gelten für jede Komponente, Seite und Code-Änderung.
   Host-Kennzeichnung, Auswahl und Logo. Logo: Sechseck und linker Strich `#F59A4A`, rechter Strich `#FBC793`.
 - Text `#ECECEE`, Nebentext `#9B9DA4`, inaktiv `#6C6E75`, Fehler `#F2B8B5`.
 - Keine farbigen Statuspunkte, keine Schatten, keine Verläufe, keine Glows.
+- Ausnahme: Der Schließen-Knopf der Titelleiste wird beim Hover Windows-üblich rot (`#C42B1C`, Schrift weiß).
+- Scrollbalken: 10 px, Griff `#2A2B30` mit Radius 5 px, Spur transparent.
 - Ausnahme Karte: Die Geländeebene „Farbig“ darf Höhenfarben und Schattierung zeigen (Daten, keine Deko).
 
 ## Schrift & Abstände

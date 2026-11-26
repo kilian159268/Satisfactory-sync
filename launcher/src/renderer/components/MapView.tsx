@@ -8,6 +8,7 @@ import {
   createFrame,
   gridLines,
   nextZoom,
+  pickVisibleLabels,
   viewBoxString,
   type MapFrame,
   type Point,
@@ -109,11 +110,13 @@ function MapMarker({
   marker,
   selected,
   scale,
+  showLabel,
   onSelect,
 }: {
   marker: Marker;
   selected: boolean;
   scale: number;
+  showLabel: boolean;
   onSelect: () => void;
 }) {
   const half = marker.size / 2;
@@ -161,13 +164,15 @@ function MapMarker({
               transform="rotate(45)"
             />
           )}
-          <text
-            className="mk__label"
-            y={marker.kind === 'station' ? -half - 8 : half + 18}
-            textAnchor="middle"
-          >
-            {marker.label}
-          </text>
+          {showLabel && (
+            <text
+              className="mk__label"
+              y={marker.kind === 'station' ? -half - 8 : half + 18}
+              textAnchor="middle"
+            >
+              {marker.label}
+            </text>
+          )}
         </>
       )}
     </g>
@@ -272,6 +277,12 @@ export function MapView({ head, live, loading }: MapViewProps) {
       : Math.min(svgSize.width / box.width, svgSize.height / box.height);
   const markerScale = 1 / pxPerUnit;
   const ordered = [...visible].sort((a, b) => order(a) - order(b));
+  const keyOf = (m: Marker) => `${m.kind}-${m.id}`;
+  const labelled = pickVisibleLabels(
+    visible.map((m) => ({ key: keyOf(m), kind: m.kind, at: m.at, size: m.size, label: m.label })),
+    markerScale,
+    selected === null ? null : keyOf(selected),
+  );
   const terrainBox =
     terrain === undefined
       ? null
@@ -326,6 +337,7 @@ export function MapView({ head, live, loading }: MapViewProps) {
             marker={marker}
             selected={selected === marker}
             scale={markerScale}
+            showLabel={labelled.has(keyOf(marker))}
             onSelect={() => {
               setSelection({ kind: marker.kind, id: marker.id });
             }}

@@ -23,7 +23,7 @@ export function TitleBar({ view, showTabs, onNavigate }: TitleBarProps) {
     <header className="titlebar">
       <div className="titlebar__brand">
         <Logo />
-        <span className="titlebar__name">Schichtwechsel</span>
+        <span className="titlebar__name">V3in-sync</span>
       </div>
       {showTabs && (
         <nav className="titlebar__tabs" aria-label="Bereiche">
@@ -61,7 +61,7 @@ export function TitleBar({ view, showTabs, onNavigate }: TitleBarProps) {
         </button>
         <button
           type="button"
-          className="titlebar__control"
+          className="titlebar__control titlebar__control--close"
           aria-label="Schließen"
           title="Schließen"
           onClick={() => {

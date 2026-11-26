@@ -1,0 +1,95 @@
+# Release: Windows-Installer (NSIS, x64) bauen (Plan 11, 13/M5).
+#  - Tag `v*` (z. B. v0.2.0): als GitHub Release veröffentlichen, inkl. latest.yml für electron-updater.
+#    Der Tag muss zur Version in launcher/package.json passen.
+#  - Manuell (workflow_dispatch): nur bauen und als Artifact hochladen.
+# Ohne Code-Signing (Plan 9): SmartScreen warnt beim ersten Start.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Installer (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: launcher
+        shell: bash
+    env:
+      PUBLISH: ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: launcher/package-lock.json
+
+      - name: Electron-Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('launcher/package-lock.json') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      - name: Tag passt zur Version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} passt nicht zu package.json (v${version})."
+            exit 1
+          fi
+
+      - name: Abhängigkeiten
+        run: npm ci
+
+      # npm 11 führt Install-Skripte nur mit allowScripts aus; ohne Binary kann nichts gepackt werden.
+      - name: Electron-Binary sicherstellen
+        run: |
+          if [ ! -d node_modules/electron/dist ]; then
+            echo "node_modules/electron/dist fehlt – lade Electron nach."
+            node node_modules/electron/install.js
+          fi
+          test -f node_modules/electron/dist/electron.exe
+
+      - name: Build
+        run: npm run build
+
+      - name: Installer bauen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --config electron-builder.yml --win --x64 --publish "$PUBLISH"
+
+      - name: Fuses prüfen
+        run: |
+          node scripts/verify-fuses.mjs release/win-unpacked/V3in-sync.exe
+          npx --no-install electron-fuses read --app release/win-unpacked/V3in-sync.exe
+
+      - name: Artifact hochladen
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: schichtwechsel-windows-x64
+          path: |
+            launcher/release/*.exe
+            launcher/release/*.exe.blockmap
+            launcher/release/latest.yml
+          if-no-files-found: error
+          retention-days: 14

@@ -5,6 +5,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, clipboard, net, protocol, session, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import type { LauncherBackend } from './backend';
 import { createBackend } from './create-backend';
 import { registerIpcHandlers } from './ipc-handlers';
@@ -19,7 +20,7 @@ import {
   resolveAppFile,
 } from './security';
 
-const APP_ID = 'de.v3in.schichtwechsel';
+const APP_ID = 'de.v3in.sync';
 const BACKGROUND = '#141416';
 
 /** Von electron-vite nur bei `npm run dev` gesetzt. */
@@ -102,14 +103,14 @@ app.on('web-contents-created', (_event, contents) => {
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 1200,
-    height: 760,
-    minWidth: 960,
-    minHeight: 600,
+    width: 1100,
+    height: 680,
+    minWidth: 820,
+    minHeight: 540,
     frame: false,
     show: false,
     backgroundColor: BACKGROUND,
-    title: 'Schichtwechsel',
+    title: 'V3in-sync',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -141,6 +142,21 @@ function focusMainWindow(): void {
   mainWindow.focus();
 }
 
+/** Auto-Update über GitHub Releases (Plan 9). Nur im installierten Build. */
+function startAutoUpdate(): void {
+  if (!app.isPackaged) return;
+  autoUpdater.logger = console;
+  autoUpdater.autoInstallOnAppQuit = true; // installiert erst beim Beenden, nach backend.dispose()
+  autoUpdater
+    .checkForUpdatesAndNotify({
+      title: 'Update bereit',
+      body: 'V3in-sync {version} wird beim nächsten Beenden installiert.',
+    })
+    .catch((error: unknown) => {
+      console.error('[updater] Prüfung fehlgeschlagen', error);
+    });
+}
+
 async function startApp(): Promise<void> {
   app.setAppUserModelId(APP_ID);
   hardenSession();
@@ -155,6 +171,7 @@ async function startApp(): Promise<void> {
   });
   disposeIpc = registerIpcHandlers({ backend, getWindow: () => mainWindow, devServerUrl });
   mainWindow = createWindow();
+  startAutoUpdate();
   await backend.start();
 }
 
