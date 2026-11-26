@@ -1,0 +1,77 @@
+/* Aktionsleiste unter der Karte: Status links, Knöpfe rechts, umbrechend. */
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16) var(--space-24);
+  padding: var(--space-16) var(--space-24);
+  border-top: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.action-bar__status {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.action-bar__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-4) 0;
+}
+
+.action-bar__title {
+  font-size: var(--font-size-20);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.action-bar__sub {
+  font-size: var(--font-size-13);
+}
+
+.action-bar__notices {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--font-size-13);
+}
+
+.action-bar__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.progress {
+  flex: 1;
+  max-width: 280px;
+  height: 4px;
+  border-radius: var(--radius-4);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.progress__bar {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.action-bar__percent {
+  font-size: var(--font-size-13);
+  color: var(--color-text-muted);
+}
+
+.action-bar__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
