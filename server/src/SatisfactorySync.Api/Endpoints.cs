@@ -7,7 +7,7 @@ namespace SatisfactorySync.Api;
 
 internal sealed record RedeemRequest(string? Code, string? Name);
 
-internal sealed record RedeemResponse(string Token, string Name);
+internal sealed record RedeemResponse(string Token, string Name, bool Linked);
 
 internal sealed record PresenceRequest(string? Status);
 
@@ -24,12 +24,19 @@ internal static class Endpoints
         app.MapPost("/api/auth/redeem", (RedeemRequest body, AuthService auth) =>
         {
             var r = auth.Redeem(body.Code, body.Name);
-            return r.Ok ? Results.Ok(new RedeemResponse(r.Value!, body.Name!.Trim())) : Problem(r.Error!);
+            return r.Ok ? Results.Ok(new RedeemResponse(r.Value!.Token, r.Value.Name, r.Value.Linked)) : Problem(r.Error!);
         }).RequireRateLimiting("redeem");
 
         var api = app.MapGroup("/api").RequireAuthorization();
 
         api.MapGet("/me", (HttpContext ctx) => Results.Ok(new { name = CurrentUser(ctx).Name }));
+
+        // Code für einen weiteren Zugang desselben Spielers (zweites Spielkonto, zweiter PC).
+        api.MapPost("/me/link-code", (HttpContext ctx, AuthService auth) =>
+        {
+            var link = auth.CreateLinkCode(CurrentUser(ctx));
+            return Results.Ok(new { code = link.Code, expiresAt = link.ExpiresAt });
+        });
 
         api.MapGet("/world", (SyncService s) => Results.Ok(s.GetWorld()));
 

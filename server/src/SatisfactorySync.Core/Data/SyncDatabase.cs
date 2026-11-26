@@ -132,5 +132,45 @@ public sealed class SyncDatabase
               PRIMARY KEY(user_id, key));
             """;
         cmd.ExecuteNonQuery();
+
+        // Ab 2026-11-26: mehrere Zugänge (Tokens/Geräte) pro Spieler, Anwesenheit pro Gerät,
+        // an einen Spieler gebundene Einladungscodes. Bestehende Daten werden übernommen.
+        AddColumnIfMissing(conn, "invites", "for_user_id", "INTEGER REFERENCES users(id)");
+        AddColumnIfMissing(conn, "invites", "expires_at", "INTEGER");
+        AddColumnIfMissing(conn, "leases", "device_id", "INTEGER");
+        using var multi = conn.CreateCommand();
+        multi.CommandText = """
+            CREATE TABLE IF NOT EXISTS tokens(
+              id INTEGER PRIMARY KEY,
+              user_id INTEGER NOT NULL REFERENCES users(id),
+              token_hash TEXT NOT NULL UNIQUE,
+              created_at INTEGER NOT NULL);
+            INSERT OR IGNORE INTO tokens(user_id, token_hash, created_at)
+              SELECT id, token_hash, created_at FROM users;
+            CREATE TABLE IF NOT EXISTS device_presence(
+              user_id INTEGER NOT NULL REFERENCES users(id),
+              device_id INTEGER NOT NULL,
+              status TEXT NOT NULL CHECK(status IN ('launcher','im_spiel')),
+              last_seen INTEGER NOT NULL,
+              PRIMARY KEY(user_id, device_id));
+            INSERT OR IGNORE INTO device_presence(user_id, device_id, status, last_seen)
+              SELECT p.user_id, t.id, p.status, p.last_seen FROM presence p
+              JOIN tokens t ON t.user_id = p.user_id;
+            """;
+        multi.ExecuteNonQuery();
+    }
+
+    private static void AddColumnIfMissing(SqliteConnection conn, string table, string column, string definition)
+    {
+        using var info = conn.CreateCommand();
+        info.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'";
+        if (Convert.ToInt64(info.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) > 0)
+        {
+            return;
+        }
+
+        using var alter = conn.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
+        alter.ExecuteNonQuery();
     }
 }

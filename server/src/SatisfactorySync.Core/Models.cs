@@ -1,6 +1,7 @@
 namespace SatisfactorySync.Core;
 
-public sealed record User(long Id, string Name, bool Blocked);
+/// <param name="DeviceId">Id des Zugangs (Token), mit dem sich der Spieler gerade meldet; 0 = unbekannt.</param>
+public sealed record User(long Id, string Name, bool Blocked, long DeviceId = 0);
 
 public static class VersionType
 {
