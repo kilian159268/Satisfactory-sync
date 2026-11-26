@@ -1,0 +1,325 @@
+/* Grundgerüst: Titelleiste 48 px, Hauptbereich + Seitenleiste 280 px, Fußzeile 32 px. */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-bg);
+}
+
+.shell__body {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: stretch;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.shell__main {
+  flex: 999 1 480px;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------------------------------------------------------------- Titelleiste */
+
+.titlebar {
+  flex-shrink: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  padding-left: var(--space-16);
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+  -webkit-app-region: drag;
+}
+
+.titlebar button {
+  -webkit-app-region: no-drag;
+}
+
+.titlebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.titlebar__name {
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.logo {
+  flex-shrink: 0;
+}
+
+.logo__hex {
+  stroke: var(--color-accent);
+}
+
+.logo__left {
+  fill: var(--color-accent);
+}
+
+.logo__right {
+  fill: var(--color-logo-light);
+}
+
+.titlebar__tabs {
+  align-self: stretch;
+  display: flex;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.tab {
+  padding: 0 var(--space-8);
+  border: 0;
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tab--current {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.titlebar__window {
+  margin-left: auto;
+  display: flex;
+}
+
+.titlebar__control {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+}
+
+.titlebar__control:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.titlebar__control:focus-visible {
+  outline-offset: -2px;
+}
+
+/* ---------------------------------------------------------------- Seitenleiste */
+
+.sidebar {
+  flex: 1 1 280px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  border-left: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.sidebar__section {
+  padding: var(--space-24);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.sidebar__section--crew {
+  padding-bottom: var(--space-16);
+  border-bottom: 0;
+}
+
+.sidebar__heading {
+  margin-bottom: var(--space-16);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+}
+
+.sidebar__heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.sidebar__heading-row .sidebar__heading {
+  margin-bottom: 0;
+}
+
+.sidebar__count {
+  font-size: var(--font-size-12);
+  color: var(--color-text-disabled);
+  white-space: nowrap;
+}
+
+.sidebar__empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-13);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-8) var(--space-16);
+}
+
+.facts dt {
+  color: var(--color-text-muted);
+}
+
+.facts dd {
+  font-weight: var(--font-weight-medium);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.facts__skel {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-4) 0;
+}
+
+.crew {
+  list-style: none;
+  padding: 0;
+}
+
+.crew__member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) 0;
+  border-bottom: var(--border-width) solid var(--color-border-soft);
+}
+
+.crew__member:last-child {
+  border-bottom: 0;
+}
+
+.crew__avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-6);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-semibold);
+}
+
+.crew__avatar--online {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.crew__avatar--offline {
+  background: transparent;
+  color: var(--color-text-disabled);
+}
+
+.crew__avatar--host {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle-bg);
+  color: var(--color-accent);
+}
+
+.crew__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.crew__name {
+  font-weight: var(--font-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crew__name--offline {
+  color: var(--color-text-disabled);
+}
+
+.crew__status {
+  font-size: var(--font-size-12);
+  color: var(--color-text-muted);
+}
+
+.host-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0 var(--space-8);
+  line-height: 24px;
+  border: var(--border-width) solid var(--color-accent-subtle-border);
+  border-radius: var(--radius-4);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent);
+}
+
+/* ---------------------------------------------------------------- Fußzeile */
+
+.footer {
+  flex-shrink: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: 0 var(--space-16);
+  border-top: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+  font-size: var(--font-size-12);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.footer__host {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.footer__host--accent {
+  color: var(--color-accent);
+}
+
+.footer__divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 12px;
+  background: var(--color-border-strong);
+}
+
+.footer__conn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
