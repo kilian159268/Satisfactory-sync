@@ -99,3 +99,39 @@ public sealed class CrewTests : IDisposable
         Assert.Equal(["Mira", "Ole"], names);
     }
 }
+
+/// <summary>Querschnitt: Fehlerformat, Pfad-Präfix.</summary>
+public sealed class HostingTests
+{
+    [Fact]
+    public async Task MalformedJson_Returns400_InErrorFormat()
+    {
+        using var server = new SyncServer();
+        var res = await server.CreateClient().PostAsync("/api/auth/redeem", new StringContent("{kaputt", System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        var j = await res.JsonAsync();
+        Assert.Equal("bad_request", j.GetProperty("error").GetString());
+        Assert.False(string.IsNullOrEmpty(j.GetProperty("message").GetString()));
+    }
+
+    [Fact]
+    public async Task UnknownRoute_Returns404_InErrorFormat()
+    {
+        using var server = new SyncServer();
+        var c = await server.UserAsync("Mira");
+        var res = await c.GetAsync("/api/gibtsnicht");
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        Assert.Equal("not_found", (await res.JsonAsync()).GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task PathBase_ServesUnderPrefix()
+    {
+        using var server = new SyncServer { PathBase = "/sync" };
+        var anon = server.CreateClient();
+        Assert.Equal(HttpStatusCode.OK, (await anon.GetAsync("/sync/healthz")).StatusCode);
+        var code = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+            .GetRequiredService<SatisfactorySync.Core.AuthService>(server.Services).CreateInvites(1)[0];
+        Assert.Equal(HttpStatusCode.OK, (await anon.PostAsJsonAsync("/sync/api/auth/redeem", new { code, name = "Mira" })).StatusCode);
+    }
+}

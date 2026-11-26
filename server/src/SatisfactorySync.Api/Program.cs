@@ -63,6 +63,8 @@ builder.Services.AddRateLimiter(o =>
     });
 });
 
+// Auch in Development keine Ausnahmeseite bei unlesbaren Anfragen, sondern 400 im API-Fehlerformat.
+builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = false);
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
 
 var app = builder.Build();
@@ -73,6 +75,23 @@ if (command is not null)
 }
 
 app.UseForwardedHeaders();
+
+// Antworten ohne Inhalt (z. B. unlesbares JSON, unbekannte Route) bekommen dasselbe Fehlerformat wie der Rest der API.
+app.UseStatusCodePages(ctx =>
+{
+    var status = ctx.HttpContext.Response.StatusCode;
+    var (code, message) = status switch
+    {
+        StatusCodes.Status400BadRequest => ("bad_request", "Anfrage ist ungültig."),
+        StatusCodes.Status404NotFound => ("not_found", "Gibt es nicht."),
+        StatusCodes.Status405MethodNotAllowed => ("method_not_allowed", "Methode nicht erlaubt."),
+        StatusCodes.Status413PayloadTooLarge => ("too_large", "Datei ist zu groß."),
+        StatusCodes.Status415UnsupportedMediaType => ("unsupported_media_type", "Falscher Inhaltstyp."),
+        StatusCodes.Status416RangeNotSatisfiable => ("range_not_satisfiable", "Bereich liegt außerhalb der Datei."),
+        _ => ("error", "Fehler auf dem Server."),
+    };
+    return ctx.HttpContext.Response.WriteAsJsonAsync(new ErrorBody(code, message, null), ctx.HttpContext.RequestAborted);
+});
 var pathBase = app.Configuration["Sync:PathBase"];
 if (!string.IsNullOrEmpty(pathBase))
 {

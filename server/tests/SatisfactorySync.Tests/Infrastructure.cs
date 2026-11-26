@@ -30,9 +30,17 @@ public sealed class SyncServer(Action<SyncOptions>? configure = null) : WebAppli
 
     public FakeDiskSpace Disk { get; } = new();
 
+    /// <summary>Optionaler Pfad-Präfix (Konfiguration <c>Sync:PathBase</c>).</summary>
+    public string? PathBase { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        if (PathBase is not null)
+        {
+            builder.UseSetting("Sync:PathBase", PathBase);
+        }
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<SyncOptions>();
