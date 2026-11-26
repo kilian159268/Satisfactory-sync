@@ -1,0 +1,10 @@
+bin/
+obj/
+node_modules/
+dist/
+out/
+release/
+*.user
+.vs/
+server/src/SatisfactorySync.Api/data/
+coverage/

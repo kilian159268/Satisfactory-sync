@@ -184,6 +184,29 @@ Wiederherstellen legt eine **neue** Version an – die alte Kette bleibt erhalte
 Der Vertrag wird als **OpenAPI-Datei** festgehalten; der TypeScript-Client im Launcher
 wird daraus erzeugt. So können Server und Launcher nicht auseinanderlaufen.
 
+**Umgesetzt in M1 (Ergänzungen, 2026-11-26):**
+- `POST /api/auth/redeem` (Code + Name → Token) und `GET /api/me`, `GET /api/audit` (Verlauf für alle) sind dazugekommen.
+  Der vollständige Vertrag steht in [`contracts/openapi.yaml`](../contracts/openapi.yaml).
+- Versionen werden über ihre `id` angesprochen; `number` ist die Anzeige-Nummer, Konfliktkopien haben keine
+  Nummer und heißen `K-<id>`.
+- Heartbeat belebt eine abgelaufene Lease wieder, solange seitdem niemand eine neue bekommen hat (Fencing-Token
+  ist noch das aktuelle). Sicher, weil jede neue Lease den Zähler erhöht; Zurückholen und Lösen löschen die Lease.
+- Karten-Daten ablegen darf nur, wer die Version hochgeladen hat (sonst `403 not_uploader`).
+- Zurückholen übernimmt den Sessionnamen der zurückgeholten Version.
+- Rate-Limits sind einstellbar (`Sync:RedeemPerMinute`, `Sync:RequestBurst`, `Sync:RequestsPerMinute`); jede
+  Fehlerantwort hat das Format `{error, message, details}`.
+
+**Mehrere Zugänge pro Spieler (ergänzt 2026-11-26):** Ein Spieler kann mehrere Tokens haben, z. B. für ein
+zweites Spielkonto oder einen zweiten PC. Alle gehören zur selben Person (ein Name, ein Verlauf).
+- Launcher: Einstellungen → „Zweiten Zugang verknüpfen“ erzeugt einen Verknüpfungscode
+  (`POST /api/me/link-code`, 24 Std. gültig, einmal einlösbar); auf dem anderen Konto beim Anmelden eingeben.
+- Kommandozeile: `invite --for NAME` (Verknüpfungscode für NAME), `link NAME ZWEIT` (Spieler ZWEIT samt Zugängen,
+  Versionen und Verlauf in NAME zusammenführen).
+- Die Lease merkt sich das Gerät (Token). Heartbeat, Freigabe, Upload und „Lease lösen“ durch den Host gehen
+  nur vom hostenden Gerät; ein zweiter Zugang desselben Spielers kann eine laufende Host-Rolle nicht übernehmen.
+- Anwesenheit pro Gerät; in der Gruppe ist der Spieler online, wenn eines seiner Geräte online ist, und
+  „im Spiel“, wenn eines im Spiel ist.
+
 ### 5.3 Upload – so wird es wasserdicht
 
 Header: `Lease-Token`, `Base-Version`, `Content-SHA256`, `Idempotency-Key`.
@@ -208,8 +231,15 @@ Header: `Lease-Token`, `Base-Version`, `Content-SHA256`, `Idempotency-Key`.
 ### 5.5 Betrieb
 
 - systemd-Service, läuft als eigener Benutzer ohne Root-Rechte.
-- Hinter dem vorhandenen **nginx** mit HTTPS (eigener `location`-Block, `client_max_body_size`
-  passend zur Save-Größe, Timeouts für große Uploads). Die genaue Konfiguration kommt in die Doku. Nur HTTPS, kein offener Port nach außen.
+- Hinter dem vorhandenen **nginx** mit HTTPS: eigene Subdomain **`sync.v3in.de`** mit eigener
+  nginx-Datei und eigenem Zertifikat (certbot), `client_max_body_size` passend zur Save-Größe,
+  Timeouts für große Uploads. Konfiguration: [`deploy/`](../deploy/). Nur HTTPS, kein offener Port nach außen.
+  *Änderung 2026-11-26:* ursprünglich `/sync/` unter der vorhandenen sslip.io-Domain. Diese Domain
+  gehört dem Forum; mit eigener Subdomain bleibt dessen Konfiguration unberührt (Wunsch des Betreibers).
+  Der Server unterstützt trotzdem einen Pfad-Präfix (`PathBase`), falls er doch unter einem Pfad laufen soll.
+- Ausgeliefert wird ein **self-contained** `linux-x64`-Build (gebaut auf dem Entwickler-PC bzw. in CI).
+  *Änderung 2026-11-26:* Auf dem Root-Server ist kein .NET installiert, und neben Minecraft sind nur
+  ~1,7 GB RAM frei. Self-contained braucht keine Paketinstallation und keine Build-Last auf dem Server.
 - Rate-Limiting (ASP.NET Core hat das eingebaut), Größenlimit für Uploads.
 - Log mit strukturierten Einträgen; Health-Endpoint `/healthz`.
 
@@ -411,13 +441,14 @@ satisfactory-sync/
 | # | Inhalt | Wo |
 |---|---|---|
 | **M1** | Server: Lease, Fencing, Versionen, Upload/Download, Anwesenheit, Tests. | Code: überall; Deployment: Root-Server |
-| **M2** | Deployment: systemd-Dienst, nginx-`location`, HTTPS, Einladungscodes für die Gruppe. | Root-Server |
+| **M2** | Deployment: systemd-Dienst, eigene nginx-Site `sync.v3in.de`, HTTPS, Einladungscodes für die Gruppe. | Root-Server |
 | **M3** | Launcher-Kern ohne UI: Zustandsmaschine, Journal, Pfade, Header-Parser, Prozess-Wächter, Recovery. | Code; Test auf Windows |
 | **M4** | Oberfläche nach Entwurf, Tray, Autostart, danach Karte. | Code; Test auf Windows |
 | **M5** | Härtung (alle Fälle aus Kapitel 8), Cloud-Erkennung, Installer + Auto-Update über GitHub Actions (`windows-latest`). | Code/CI |
 | **M6** | Testrunde mit der Gruppe (ein Steam-, ein Epic-PC), dann 1.0. | Windows-PCs |
 
-Die Windows-Teile (M3–M6) lassen sich auf dem Linux-Server nur bauen und unit-testen; echte
+Gebaut und unit-getestet wird auf dem Entwickler-PC (Windows) und in CI; der Root-Server bekommt nur
+fertige Builds (*Änderung 2026-11-26*, siehe 5.5). Echte
 Tests mit Satisfactory laufen auf einem Windows-PC. Die Prüfpunkte aus Kapitel 14 werden dort
 als Erstes abgehakt.
 
@@ -437,6 +468,6 @@ als Erstes abgehakt.
 **Entschieden:**
 
 - Launcher: Electron + TypeScript (Logik und UI). Server: C# / ASP.NET Core (.NET 10), SQLite.
-- nginx als Reverse-Proxy; API unter einem eigenen Pfad der vorhandenen Domain (z. B. `/sync/`).
+- nginx als Reverse-Proxy; API auf eigener Subdomain `sync.v3in.de` (geändert 2026-11-26, siehe 5.5).
 - 4–5 Spieler, alle gleichberechtigt, kein Admin. Genau ein gemeinsamer Spielstand.
 - Dunkles Design nach `DESIGN.md`, Logo = V3in-Logo in Orange.
