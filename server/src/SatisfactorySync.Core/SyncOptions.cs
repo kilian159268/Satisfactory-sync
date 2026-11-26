@@ -25,6 +25,14 @@ public sealed class SyncOptions
     /// <summary>... plus eine pro Tag für so viele Tage (gilt auch für Konfliktkopien).</summary>
     public int KeepDailyDays { get; set; } = 30;
 
+    /// <summary>Rate-Limit für das Einlösen von Einladungscodes (pro IP und Minute).</summary>
+    public int RedeemPerMinute { get; set; } = 10;
+
+    /// <summary>Rate-Limit für alle übrigen Anfragen (pro Spieler bzw. IP): Spitze und Nachschub pro Minute.</summary>
+    public int RequestBurst { get; set; } = 120;
+
+    public int RequestsPerMinute { get; set; } = 120;
+
     public string DatabasePath => Path.Combine(DataDir, "sync.db");
 
     public string VersionsDir => Path.Combine(DataDir, "versions");

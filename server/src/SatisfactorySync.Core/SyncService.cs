@@ -449,7 +449,7 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
 
             if (owner != user.Id)
             {
-                return Errors.Invalid("not_uploader", "Nur wer die Version hochgeladen hat, kann die Karte ablegen.");
+                return Errors.NotUploader;
             }
 
             c.Exec(tx, "UPDATE versions SET map_json = $j WHERE id = $v", ("$j", json), ("$v", versionId));

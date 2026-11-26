@@ -168,6 +168,7 @@ internal static class Endpoints
         {
             ErrorKind.Invalid => StatusCodes.Status400BadRequest,
             ErrorKind.Unauthorized => StatusCodes.Status401Unauthorized,
+            ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
             ErrorKind.NotFound => StatusCodes.Status404NotFound,
             ErrorKind.Conflict => StatusCodes.Status409Conflict,
             ErrorKind.Unprocessable => StatusCodes.Status422UnprocessableEntity,

@@ -39,13 +39,28 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(
+        new ErrorBody("rate_limited", "Zu viele Anfragen. Bitte kurz warten.", null), ct));
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
-        RateLimitPartition.GetTokenBucketLimiter(
+    {
+        var sync = ctx.RequestServices.GetRequiredService<SyncOptions>();
+        return RateLimitPartition.GetTokenBucketLimiter(
             ctx.User.Identity?.Name ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
-            _ => new TokenBucketRateLimiterOptions { TokenLimit = 120, TokensPerPeriod = 60, ReplenishmentPeriod = TimeSpan.FromSeconds(30), QueueLimit = 0 }));
-    o.AddPolicy("redeem", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+            _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = sync.RequestBurst,
+                TokensPerPeriod = Math.Max(1, sync.RequestsPerMinute / 2),
+                ReplenishmentPeriod = TimeSpan.FromSeconds(30),
+                QueueLimit = 0,
+            });
+    });
+    o.AddPolicy("redeem", ctx =>
+    {
+        var sync = ctx.RequestServices.GetRequiredService<SyncOptions>();
+        return RateLimitPartition.GetFixedWindowLimiter(
+            ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = sync.RedeemPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+    });
 });
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);

@@ -1,0 +1,8 @@
+# Testcode: Namen wie Methode_Fall_Erwartung, keine ConfigureAwait-Pflicht.
+[*.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA1001.severity = none
+dotnet_diagnostic.CA1861.severity = none

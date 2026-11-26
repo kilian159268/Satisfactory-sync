@@ -20,7 +20,7 @@ public sealed class FakeDiskSpace : IDiskSpace
 }
 
 /// <summary>Ein echter Server (In-Memory-HTTP) mit eigenem Datenordner, steuerbarer Uhr und Speicherplatz.</summary>
-public sealed class SyncServer : WebApplicationFactory<Program>
+public sealed class SyncServer(Action<SyncOptions>? configure = null) : WebApplicationFactory<Program>
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -36,13 +36,18 @@ public sealed class SyncServer : WebApplicationFactory<Program>
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<SyncOptions>();
-            services.AddSingleton(new SyncOptions { DataDir = DataDir });
+            // Viele Spieler pro Test: das Einlöse-Limit wird nur in einem eigenen Test geprüft.
+            var options = new SyncOptions { DataDir = DataDir, RedeemPerMinute = 10_000 };
+            configure?.Invoke(options);
+            services.AddSingleton(options);
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
             services.RemoveAll<IDiskSpace>();
             services.AddSingleton<IDiskSpace>(Disk);
         });
     }
+
+    public SyncOptions Options => Services.GetRequiredService<SyncOptions>();
 
     public async Task<HttpClient> UserAsync(string name)
     {
