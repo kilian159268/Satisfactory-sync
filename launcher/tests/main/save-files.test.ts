@@ -82,12 +82,18 @@ describe('Save-Watcher (Plan 4.4)', () => {
   const rules: WatchRules = { sessionName: 'S', minPlaySeconds: 100, notBeforeMs: 0 };
 
   it('Regeln: Sessionname, Spielzeit ≥ zuletzt, ohne Session nur neue Dateien', () => {
-    const h = (sessionName: string, playSeconds: number) => ({ ...buildHeader(sessionName, playSeconds) });
+    const h = (sessionName: string, playSeconds: number) => ({
+      ...buildHeader(sessionName, playSeconds),
+    });
     expect(judgeSave(h('S', 100), 0, rules)).toBe('ok');
     expect(judgeSave(h('S', 99), 0, rules)).toBe('playtime_regressed');
     expect(judgeSave(h('X', 500), 0, rules)).toBe('wrong_session');
-    expect(judgeSave(h('X', 500), 5, { sessionName: null, minPlaySeconds: 0, notBeforeMs: 10 })).toBe('too_old');
-    expect(judgeSave(h('X', 500), 15, { sessionName: null, minPlaySeconds: 0, notBeforeMs: 10 })).toBe('ok');
+    expect(
+      judgeSave(h('X', 500), 5, { sessionName: null, minPlaySeconds: 0, notBeforeMs: 10 }),
+    ).toBe('too_old');
+    expect(
+      judgeSave(h('X', 500), 15, { sessionName: null, minPlaySeconds: 0, notBeforeMs: 10 }),
+    ).toBe('ok');
   });
 
   function setup() {
@@ -97,7 +103,18 @@ describe('Save-Watcher (Plan 4.4)', () => {
     const got: SessionSave[] = [];
     const rejected: string[] = [];
     let current = rules;
-    const w = new SaveWatcher(fs, clock, dir, () => current, (s) => { got.push(s); }, (_s, v) => rejected.push(v), 5_000, 1_000);
+    const w = new SaveWatcher(
+      fs,
+      clock,
+      dir,
+      () => current,
+      (s) => {
+        got.push(s);
+      },
+      (_s, v) => rejected.push(v),
+      5_000,
+      1_000,
+    );
     w.start();
     return { clock, fs, got, rejected, w, setRules: (r: WatchRules) => (current = r) };
   }
@@ -108,7 +125,10 @@ describe('Save-Watcher (Plan 4.4)', () => {
     await clock.advance(4_000);
     expect(got).toHaveLength(0);
     // Spiel schreibt noch → Uhr beginnt neu
-    fs.put(join(dir, 'S_autosave_0.sav'), buildSave({ sessionName: 'S', playSeconds: 200, body: 'mehr' }));
+    fs.put(
+      join(dir, 'S_autosave_0.sav'),
+      buildSave({ sessionName: 'S', playSeconds: 200, body: 'mehr' }),
+    );
     await clock.advance(4_000);
     expect(got).toHaveLength(0);
     await clock.advance(3_000);
@@ -135,7 +155,13 @@ describe('Save-Watcher (Plan 4.4)', () => {
 
 function buildHeader(sessionName: string, playSeconds: number) {
   return {
-    headerVersion: 14, saveVersion: 46, buildVersion: 1, saveName: null, mapName: 'm',
-    sessionName, playSeconds, saveDateTicks: 0n,
+    headerVersion: 14,
+    saveVersion: 46,
+    buildVersion: 1,
+    saveName: null,
+    mapName: 'm',
+    sessionName,
+    playSeconds,
+    saveDateTicks: 0n,
   };
 }

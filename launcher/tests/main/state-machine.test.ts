@@ -25,7 +25,8 @@ describe('Zustandsmaschine (Plan 6.1)', () => {
 
   it('jede Phase ist erreichbar und jede Zielphase existiert', () => {
     const targets = new Set(entries.map((e) => e.to));
-    for (const p of PHASES) if (p !== 'verbinden' && p !== 'fehler') expect(targets.has(p)).toBe(true);
+    for (const p of PHASES)
+      if (p !== 'verbinden' && p !== 'fehler') expect(targets.has(p)).toBe(true);
     for (const t of targets) expect(PHASES).toContain(t);
   });
 
@@ -48,9 +49,16 @@ describe('Zustandsmaschine (Plan 6.1)', () => {
 
   it('Hauptpfad aus dem Plan-Diagramm', () => {
     const path: [string, Phase][] = [
-      ['PLAY', 'lease_holen'], ['LEASE_GRANTED', 'herunterladen'], ['DOWNLOADED', 'vorbereiten'],
-      ['PREPARED', 'spiel_starten'], ['GAME_STARTED', 'hosten'], ['GAME_ENDED', 'beenden'],
-      ['UPLOAD', 'hochladen'], ['UPLOADED', 'lease_freigeben'], ['RELEASED', 'aufraeumen'], ['CLEANED', 'bereit'],
+      ['PLAY', 'lease_holen'],
+      ['LEASE_GRANTED', 'herunterladen'],
+      ['DOWNLOADED', 'vorbereiten'],
+      ['PREPARED', 'spiel_starten'],
+      ['GAME_STARTED', 'hosten'],
+      ['GAME_ENDED', 'beenden'],
+      ['UPLOAD', 'hochladen'],
+      ['UPLOADED', 'lease_freigeben'],
+      ['RELEASED', 'aufraeumen'],
+      ['CLEANED', 'bereit'],
     ];
     let p: Phase = 'bereit';
     for (const [e, to] of path) {
@@ -85,10 +93,13 @@ describe('Zustandsmaschine (Plan 6.1)', () => {
     it.each(Object.entries(expected))('%s', (phase, [off, on]) => {
       expect(recoveryFor(phase as Phase, false)).toBe(off);
       expect(recoveryFor(phase as Phase, true)).toBe(on);
-      for (const ev of [off, on]) if (ev !== 'DISCARD') expect(nextPhase('verbinden', ev as (typeof EVENTS)[number])).not.toBeNull();
+      for (const ev of [off, on])
+        if (ev !== 'DISCARD')
+          expect(nextPhase('verbinden', ev as (typeof EVENTS)[number])).not.toBeNull();
     });
     it('Phasen ohne Session werden verworfen', () => {
-      for (const p of PHASES.filter((x) => !SESSION_PHASES.has(x))) expect(recoveryFor(p, true)).toBe('DISCARD');
+      for (const p of PHASES.filter((x) => !SESSION_PHASES.has(x)))
+        expect(recoveryFor(p, true)).toBe('DISCARD');
     });
   });
 });

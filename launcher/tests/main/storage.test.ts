@@ -39,9 +39,15 @@ describe('Einstellungen', () => {
     const s = new SettingsStore(fs, ud);
     expect(await s.load()).toEqual(DEFAULT_SETTINGS);
     await s.update({ platform: 'epic', autostart: true });
-    expect(await new SettingsStore(fs, ud).load()).toMatchObject({ platform: 'epic', autostart: true });
+    expect(await new SettingsStore(fs, ud).load()).toMatchObject({
+      platform: 'epic',
+      autostart: true,
+    });
     fs.put(join(ud, 'settings.json'), JSON.stringify({ serverUrl: 'ftp://x', platform: 'steam' }));
-    expect(await new SettingsStore(fs, ud).load()).toMatchObject({ serverUrl: DEFAULT_SETTINGS.serverUrl, platform: 'steam' });
+    expect(await new SettingsStore(fs, ud).load()).toMatchObject({
+      serverUrl: DEFAULT_SETTINGS.serverUrl,
+      platform: 'steam',
+    });
     fs.put(join(ud, 'settings.json'), '{kaputt');
     expect(await new SettingsStore(fs, ud).load()).toEqual(DEFAULT_SETTINGS);
     await expect(s.update({ serverUrl: 'http://evil.example' })).rejects.toThrow();
@@ -50,9 +56,23 @@ describe('Einstellungen', () => {
 
 describe('Journal', () => {
   const j: Journal = {
-    v: 1, phase: 'hosten', startedAt: 1, leaseId: 'l', fencingToken: 3, baseVersionId: 7, sessionName: 'S',
-    platform: 'steam', saveDir: '/s', placedFile: null, placedSha256: null, lastPlaySeconds: 10,
-    confirmedSha256: [], rejectedSha256: [], pendingUpload: null, leaseLost: false, notice: null,
+    v: 1,
+    phase: 'hosten',
+    startedAt: 1,
+    leaseId: 'l',
+    fencingToken: 3,
+    baseVersionId: 7,
+    sessionName: 'S',
+    platform: 'steam',
+    saveDir: '/s',
+    placedFile: null,
+    placedSha256: null,
+    lastPlaySeconds: 10,
+    confirmedSha256: [],
+    rejectedSha256: [],
+    pendingUpload: null,
+    leaseLost: false,
+    notice: null,
   };
   it('speichert, lädt, leert (ohne zu löschen)', async () => {
     const fs = new MemoryFs();

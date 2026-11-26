@@ -1,14 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { parseSaveHeader, readSaveHeader, SaveHeaderError, tryReadSaveHeader } from '../../src/main/saves/save-header';
+import {
+  parseSaveHeader,
+  readSaveHeader,
+  SaveHeaderError,
+  tryReadSaveHeader,
+} from '../../src/main/saves/save-header';
 import { buildSave } from './helpers/saves';
 import { MemoryFs } from './helpers/memory-fs';
 
 describe('Save-Header-Parser (Plan 6.3, Annahme Kapitel 14)', () => {
   it('liest Header v14 (mit SaveName)', () => {
-    const h = parseSaveHeader(buildSave({ headerVersion: 14, saveVersion: 46, buildVersion: 416835, saveName: 'Mein Save', sessionName: 'Fabrik', playSeconds: 12345, saveTicks: 638000000000000001n }));
+    const h = parseSaveHeader(
+      buildSave({
+        headerVersion: 14,
+        saveVersion: 46,
+        buildVersion: 416835,
+        saveName: 'Mein Save',
+        sessionName: 'Fabrik',
+        playSeconds: 12345,
+        saveTicks: 638000000000000001n,
+      }),
+    );
     expect(h).toEqual({
-      headerVersion: 14, saveVersion: 46, buildVersion: 416835, saveName: 'Mein Save',
-      mapName: 'Persistent_Level', sessionName: 'Fabrik', playSeconds: 12345, saveDateTicks: 638000000000000001n,
+      headerVersion: 14,
+      saveVersion: 46,
+      buildVersion: 416835,
+      saveName: 'Mein Save',
+      mapName: 'Persistent_Level',
+      sessionName: 'Fabrik',
+      playSeconds: 12345,
+      saveDateTicks: 638000000000000001n,
     });
   });
 
@@ -20,13 +41,17 @@ describe('Save-Header-Parser (Plan 6.3, Annahme Kapitel 14)', () => {
   });
 
   it('liest UTF-16-Zeichenketten (negative Länge)', () => {
-    const h = parseSaveHeader(buildSave({ sessionName: 'Fabrik Süd ✓ 工場', playSeconds: 1, utf16: true }));
+    const h = parseSaveHeader(
+      buildSave({ sessionName: 'Fabrik Süd ✓ 工場', playSeconds: 1, utf16: true }),
+    );
     expect(h.sessionName).toBe('Fabrik Süd ✓ 工場');
     expect(h.saveName).toBe('Fabrik Süd ✓ 工場');
   });
 
   it('liest 8-Bit-Zeichen als Latin-1 wie der Server', () => {
-    expect(parseSaveHeader(buildSave({ sessionName: 'Größe', playSeconds: 1 })).sessionName).toBe('Größe');
+    expect(parseSaveHeader(buildSave({ sessionName: 'Größe', playSeconds: 1 })).sessionName).toBe(
+      'Größe',
+    );
   });
 
   it('wirft bei abgeschnittenem Header an jeder Stelle', () => {
@@ -38,10 +63,18 @@ describe('Save-Header-Parser (Plan 6.3, Annahme Kapitel 14)', () => {
   });
 
   it('lehnt unbekannte Header-Version, leeren Sessionnamen und zu lange Strings ab', () => {
-    expect(() => parseSaveHeader(buildSave({ headerVersion: 0, sessionName: 'x', playSeconds: 1 }))).toThrow(/Header-Version/);
-    expect(() => parseSaveHeader(buildSave({ headerVersion: 999, sessionName: 'x', playSeconds: 1 }))).toThrow(/Header-Version/);
-    expect(() => parseSaveHeader(buildSave({ sessionName: '', playSeconds: 1 }))).toThrow(/Sessionname/);
-    expect(() => parseSaveHeader(buildSave({ sessionName: 'x', playSeconds: -1 }))).toThrow(/Unplausible/);
+    expect(() =>
+      parseSaveHeader(buildSave({ headerVersion: 0, sessionName: 'x', playSeconds: 1 })),
+    ).toThrow(/Header-Version/);
+    expect(() =>
+      parseSaveHeader(buildSave({ headerVersion: 999, sessionName: 'x', playSeconds: 1 })),
+    ).toThrow(/Header-Version/);
+    expect(() => parseSaveHeader(buildSave({ sessionName: '', playSeconds: 1 }))).toThrow(
+      /Sessionname/,
+    );
+    expect(() => parseSaveHeader(buildSave({ sessionName: 'x', playSeconds: -1 }))).toThrow(
+      /Unplausible/,
+    );
     const bad = buildSave({ sessionName: 'x', playSeconds: 1 });
     new DataView(bad.buffer).setInt32(12, 100_000, true);
     expect(() => parseSaveHeader(bad)).toThrow(/zu lang/);

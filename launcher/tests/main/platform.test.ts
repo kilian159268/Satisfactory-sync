@@ -14,7 +14,13 @@ import {
   steamLibrariesFromVdf,
   suggestPlatform,
 } from '../../src/main/platform/detect';
-import { GameProcessWatcher, isGameProcess, launchUriFor, parseTasklistCsv, tasklistProbe } from '../../src/main/platform/game-process';
+import {
+  GameProcessWatcher,
+  isGameProcess,
+  launchUriFor,
+  parseTasklistCsv,
+  tasklistProbe,
+} from '../../src/main/platform/game-process';
 import { FakeClock } from './helpers/fake-clock';
 import { MemoryFs } from './helpers/memory-fs';
 
@@ -40,7 +46,8 @@ const VDF = `"libraryfolders"
 
 describe('Registry & Steam', () => {
   it('liest Werte aus reg query', () => {
-    const out = '\r\nHKEY_CURRENT_USER\\Software\\Valve\\Steam\r\n    SteamPath    REG_SZ    c:/program files (x86)/steam\r\n\r\n';
+    const out =
+      '\r\nHKEY_CURRENT_USER\\Software\\Valve\\Steam\r\n    SteamPath    REG_SZ    c:/program files (x86)/steam\r\n\r\n';
     expect(parseRegQueryValue(out, 'SteamPath')).toBe('c:/program files (x86)/steam');
     expect(parseRegQueryValue(out, 'Fehlt')).toBeNull();
   });
@@ -59,16 +66,27 @@ describe('Registry & Steam', () => {
 
   it('parst libraryfolders.vdf, Bibliothek mit Satisfactory zuerst', () => {
     expect(parseVdf('"a" { "b" "c" }')).toEqual({ a: { b: 'c' } });
-    expect(steamLibrariesFromVdf(VDF)).toEqual(['D:\\SteamLibrary', 'C:\\Program Files (x86)\\Steam']);
+    expect(steamLibrariesFromVdf(VDF)).toEqual([
+      'D:\\SteamLibrary',
+      'C:\\Program Files (x86)\\Steam',
+    ]);
   });
 
   it('findet den Spielordner über appmanifest/installdir', async () => {
     const fs = new MemoryFs();
     const lib = resolve('/lib');
-    fs.put(resolve('/steam/steamapps/libraryfolders.vdf'), `"libraryfolders" { "1" { "path" "${lib.replace(/\\/g, '\\\\')}" "apps" { "526870" "1" } } }`);
-    fs.put(join(lib, 'steamapps/appmanifest_526870.acf'), '"AppState" { "appid" "526870" "installdir" "Satisfactory" }');
+    fs.put(
+      resolve('/steam/steamapps/libraryfolders.vdf'),
+      `"libraryfolders" { "1" { "path" "${lib.replace(/\\/g, '\\\\')}" "apps" { "526870" "1" } } }`,
+    );
+    fs.put(
+      join(lib, 'steamapps/appmanifest_526870.acf'),
+      '"AppState" { "appid" "526870" "installdir" "Satisfactory" }',
+    );
     await fs.mkdir(join(lib, 'steamapps/common/Satisfactory'));
-    expect(await findSteamGameDir(fs, resolve('/steam'))).toBe(join(lib, 'steamapps', 'common', 'Satisfactory'));
+    expect(await findSteamGameDir(fs, resolve('/steam'))).toBe(
+      join(lib, 'steamapps', 'common', 'Satisfactory'),
+    );
     expect(await findSteamGameDir(new MemoryFs(), resolve('/steam'))).toBeNull();
   });
 });
@@ -79,10 +97,20 @@ describe('Epic', () => {
     const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
     fs.put(join(man, 'a.item'), JSON.stringify({ AppName: 'Fortnite', InstallLocation: '/x' }));
     fs.put(join(man, 'b.item'), '{kaputt');
-    fs.put(join(man, 'c.item'), JSON.stringify({ AppName: 'CrabEA', DisplayName: 'Satisfactory', InstallLocation: resolve('/epic/Satisfactory') }));
+    fs.put(
+      join(man, 'c.item'),
+      JSON.stringify({
+        AppName: 'CrabEA',
+        DisplayName: 'Satisfactory',
+        InstallLocation: resolve('/epic/Satisfactory'),
+      }),
+    );
     await fs.mkdir(resolve('/epic/Satisfactory'));
     expect(await findEpicGameDir(fs, resolve('/pd'))).toBe(resolve('/epic/Satisfactory'));
-    const games = await detectInstalledGames(fs, () => Promise.reject(new Error('kein Steam')), { localAppData: null, programData: resolve('/pd') });
+    const games = await detectInstalledGames(fs, () => Promise.reject(new Error('kein Steam')), {
+      localAppData: null,
+      programData: resolve('/pd'),
+    });
     expect(games).toEqual({ steam: null, epic: { gameDir: resolve('/epic/Satisfactory') } });
     expect(suggestPlatform(games)).toBe('epic');
     expect(suggestPlatform({ steam: null, epic: null })).toBeNull();
@@ -92,7 +120,10 @@ describe('Epic', () => {
 describe('Spielversion & Save-Ordner', () => {
   it('liest Changelist aus der .version-Datei', async () => {
     const fs = new MemoryFs();
-    fs.put(resolve('/g/FactoryGame/Binaries/Win64/FactoryGameEGS-Win64-Shipping.version'), JSON.stringify({ Changelist: 416835 }));
+    fs.put(
+      resolve('/g/FactoryGame/Binaries/Win64/FactoryGameEGS-Win64-Shipping.version'),
+      JSON.stringify({ Changelist: 416835 }),
+    );
     expect(await readInstalledBuild(fs, resolve('/g'), 'epic')).toBe(416835);
     expect(await readInstalledBuild(fs, resolve('/g'), 'steam')).toBeNull();
   });
@@ -108,7 +139,11 @@ describe('Spielversion & Save-Ordner', () => {
     fs.put(join(root, '0123456789abcdef0123456789abcdef/a.sav'), 'x', 500);
     fs.put(join(root, 'blueprints/x.sbp'), 'x', 900);
     const dirs = await findSaveDirs(fs, resolve('/lad'));
-    expect(dirs.map((d) => d.id)).toEqual(['0123456789abcdef0123456789abcdef', '76561198000000002', '76561198000000001']);
+    expect(dirs.map((d) => d.id)).toEqual([
+      '0123456789abcdef0123456789abcdef',
+      '76561198000000002',
+      '76561198000000001',
+    ]);
     expect(chooseSaveDir(dirs, 'steam')?.id).toBe('76561198000000002');
     expect(chooseSaveDir(dirs, 'epic')?.platform).toBe('epic');
     expect(chooseSaveDir([], 'epic')).toBeNull();
@@ -118,12 +153,18 @@ describe('Spielversion & Save-Ordner', () => {
 describe('Spielprozess', () => {
   it('Start-URIs', () => {
     expect(launchUriFor('steam')).toBe('steam://rungameid/526870');
-    expect(launchUriFor('epic')).toBe('com.epicgames.launcher://apps/Crab?action=launch&silent=true');
+    expect(launchUriFor('epic')).toBe(
+      'com.epicgames.launcher://apps/Crab?action=launch&silent=true',
+    );
   });
 
   it('parst tasklist /FO CSV /NH', async () => {
-    const out = '"System Idle Process","0","Services","0","8 K"\r\n"FactoryGameSteam-Win64-Shipping.exe","4242","Console","1","9.000.000 K"\r\n';
-    expect(parseTasklistCsv(out)).toEqual(['System Idle Process', 'FactoryGameSteam-Win64-Shipping.exe']);
+    const out =
+      '"System Idle Process","0","Services","0","8 K"\r\n"FactoryGameSteam-Win64-Shipping.exe","4242","Console","1","9.000.000 K"\r\n';
+    expect(parseTasklistCsv(out)).toEqual([
+      'System Idle Process',
+      'FactoryGameSteam-Win64-Shipping.exe',
+    ]);
     expect(isGameProcess('factorygameegs-win64-shipping.exe')).toBe(true);
     expect(isGameProcess('FactoryGame.exe')).toBe(false);
     expect(await tasklistProbe(() => Promise.resolve(out))()).toBe(true);
@@ -154,7 +195,12 @@ describe('Spielprozess', () => {
   it('Wächter: Fehler beim Abfragen ändern nichts', async () => {
     const clock = new FakeClock();
     let fail = false;
-    const w = new GameProcessWatcher(() => (fail ? Promise.reject(new Error('x')) : Promise.resolve(true)), clock, 1_000, 1_000);
+    const w = new GameProcessWatcher(
+      () => (fail ? Promise.reject(new Error('x')) : Promise.resolve(true)),
+      clock,
+      1_000,
+      1_000,
+    );
     expect(await w.start()).toBe(true);
     fail = true;
     await clock.advance(10_000);

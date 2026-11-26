@@ -136,8 +136,15 @@ export class MemoryFs implements FileSystem {
   stat(path: string): Promise<FileStat | null> {
     const k = this.key(path);
     const e = this.files.get(k);
-    if (e) return Promise.resolve({ size: e.data.length, mtimeMs: e.mtimeMs, isFile: true, isDirectory: false });
-    if (this.dirs.has(k)) return Promise.resolve({ size: 0, mtimeMs: 0, isFile: false, isDirectory: true });
+    if (e)
+      return Promise.resolve({
+        size: e.data.length,
+        mtimeMs: e.mtimeMs,
+        isFile: true,
+        isDirectory: false,
+      });
+    if (this.dirs.has(k))
+      return Promise.resolve({ size: 0, mtimeMs: 0, isFile: false, isDirectory: true });
     return Promise.resolve(null);
   }
   utimes(path: string, _atime: Date, mtime: Date): Promise<void> {

@@ -74,7 +74,16 @@ export class FakeServer {
   /** Version direkt anlegen (als Head), z. B. Ausgangslage. */
   seedVersion(data: Uint8Array, uploadedBy = 'Alt'): Version {
     const header = parseSaveHeader(data);
-    const v = this.addVersion(data, header.playSeconds, header.buildVersion, header.sessionName, uploadedBy, 'normal', null, null);
+    const v = this.addVersion(
+      data,
+      header.playSeconds,
+      header.buildVersion,
+      header.sessionName,
+      uploadedBy,
+      'normal',
+      null,
+      null,
+    );
     this.headId = v.id;
     this.sessionName ??= header.sessionName;
     return v;
@@ -92,7 +101,13 @@ export class FakeServer {
   grantLease(user: string): Lease {
     this.fencing++;
     const now = this.clock.now();
-    this.lease = { user, token: this.fencing, leaseId: `lease-${this.fencing}`, since: now, expiresAt: now + LEASE_MS };
+    this.lease = {
+      user,
+      token: this.fencing,
+      leaseId: `lease-${this.fencing}`,
+      since: now,
+      expiresAt: now + LEASE_MS,
+    };
     return this.lease;
   }
 
@@ -151,7 +166,8 @@ export class FakeServer {
     const path = url.pathname;
     const headers = new Headers(init.headers);
     const auth = headers.get('Authorization');
-    const user = auth?.startsWith('Bearer ') === true ? (this.tokens.get(auth.slice(7)) ?? null) : null;
+    const user =
+      auth?.startsWith('Bearer ') === true ? (this.tokens.get(auth.slice(7)) ?? null) : null;
     this.log.push({ method, path, user, headers });
     if (this.offline) throw new TypeError('fetch failed');
     for (const icpt of this.interceptors) {
@@ -166,12 +182,20 @@ export class FakeServer {
     return this.route(method, path, headers, user, body);
   };
 
-  private route(method: string, path: string, headers: Headers, user: string | null, body: Uint8Array): Response {
+  private route(
+    method: string,
+    path: string,
+    headers: Headers,
+    user: string | null,
+    body: Uint8Array,
+  ): Response {
     const now = this.clock.now();
     if (method === 'POST' && path === '/api/auth/redeem') {
       const req = JSON.parse(new TextDecoder().decode(body)) as { code: string; name: string };
-      if (this.invites.get(req.code) !== true) return err(401, 'invite_invalid', 'Einladungscode ist ungültig oder schon benutzt.');
-      if ([...this.tokens.values()].includes(req.name)) return err(409, 'name_taken', 'Name ist schon vergeben.');
+      if (this.invites.get(req.code) !== true)
+        return err(401, 'invite_invalid', 'Einladungscode ist ungültig oder schon benutzt.');
+      if ([...this.tokens.values()].includes(req.name))
+        return err(409, 'name_taken', 'Name ist schon vergeben.');
       this.invites.set(req.code, false);
       const token = `token-${req.name}`;
       this.tokens.set(token, req.name);
@@ -206,7 +230,7 @@ export class FakeServer {
     if (path === '/api/lease/heartbeat' || (method === 'DELETE' && path === '/api/lease')) {
       const token = Number(headers.get('Lease-Token'));
       const active = this.activeLease();
-      if (active === null || active.token !== token || active.user !== user) {
+      if (active?.token !== token || active.user !== user) {
         return err(409, 'lease_lost', 'Hostrecht verloren.');
       }
       if (method === 'DELETE') {
@@ -227,7 +251,9 @@ export class FakeServer {
         this.maps.set(id, JSON.parse(new TextDecoder().decode(body)));
         return json(204, null);
       }
-      return this.maps.has(id) ? json(200, this.maps.get(id)) : err(404, 'map_not_found', 'Keine Karte.');
+      return this.maps.has(id)
+        ? json(200, this.maps.get(id))
+        : err(404, 'map_not_found', 'Keine Karte.');
     }
     const restore = /^\/api\/versions\/(\d+)\/restore$/.exec(path);
     if (method === 'POST' && restore) {
@@ -235,7 +261,16 @@ export class FakeServer {
       const src = this.versions.find((v) => v.id === Number(restore[1]));
       const data = src ? this.files.get(src.id) : undefined;
       if (!src || !data) return err(404, 'version_not_found', 'Version nicht gefunden.');
-      const v = this.addVersion(data, src.playSeconds, src.buildVersion, src.sessionName, user, 'normal', this.headId, null);
+      const v = this.addVersion(
+        data,
+        src.playSeconds,
+        src.buildVersion,
+        src.sessionName,
+        user,
+        'normal',
+        this.headId,
+        null,
+      );
       this.headId = v.id;
       return json(201, v);
     }
@@ -269,7 +304,8 @@ export class FakeServer {
     const known = this.idempotency.get(`${user}:${key}`);
     if (known) return json(known.status, known.body);
     if (this.diskFull) return err(507, 'disk_full', 'Server-Festplatte voll.');
-    if (headers.get('Content-SHA256') !== sha(body)) return err(400, 'hash_mismatch', 'Hash stimmt nicht.');
+    if (headers.get('Content-SHA256') !== sha(body))
+      return err(400, 'hash_mismatch', 'Hash stimmt nicht.');
     let header;
     try {
       header = parseSaveHeader(body);
@@ -277,7 +313,10 @@ export class FakeServer {
       return err(422, 'invalid_save', 'Kein gültiger Spielstand.');
     }
     if (this.sessionName !== null && header.sessionName !== this.sessionName) {
-      return err(422, 'wrong_session', 'Falscher Spielstand.', { expected: this.sessionName, actual: header.sessionName });
+      return err(422, 'wrong_session', 'Falscher Spielstand.', {
+        expected: this.sessionName,
+        actual: header.sessionName,
+      });
     }
     const base = Number(headers.get('Base-Version') ?? '0');
     const tokenHeader = headers.get('Lease-Token');
@@ -289,20 +328,44 @@ export class FakeServer {
       if (this.lease === null || active === null) reason = 'lease_expired';
       else if (active.token !== Number(tokenHeader) || active.user !== user) reason = 'stale_token';
       else if ((this.headId ?? 0) !== base) reason = 'base_mismatch';
-      else if (head !== null && header.playSeconds < head.playSeconds) reason = 'playtime_regressed';
+      else if (head !== null && header.playSeconds < head.playSeconds)
+        reason = 'playtime_regressed';
     }
     let status: number;
     let result: unknown;
     if (reason === null) {
-      const v = this.addVersion(body, header.playSeconds, header.buildVersion, header.sessionName, user, 'normal', base, null);
+      const v = this.addVersion(
+        body,
+        header.playSeconds,
+        header.buildVersion,
+        header.sessionName,
+        user,
+        'normal',
+        base,
+        null,
+      );
       this.headId = v.id;
       this.sessionName ??= header.sessionName;
       status = 201;
       result = { accepted: true, version: v, conflictReason: null, message: null };
     } else {
-      const v = this.addVersion(body, header.playSeconds, header.buildVersion, header.sessionName, user, 'konflikt', base, reason);
+      const v = this.addVersion(
+        body,
+        header.playSeconds,
+        header.buildVersion,
+        header.sessionName,
+        user,
+        'konflikt',
+        base,
+        reason,
+      );
       status = 409;
-      result = { accepted: false, version: v, conflictReason: reason, message: `Als Konfliktkopie ${v.label} gespeichert.` };
+      result = {
+        accepted: false,
+        version: v,
+        conflictReason: reason,
+        message: `Als Konfliktkopie ${v.label} gespeichert.`,
+      };
     }
     this.idempotency.set(`${user}:${key}`, { status, body: result });
     return json(status, result);
@@ -324,7 +387,10 @@ export class FakeServer {
     if (range) {
       const start = Number(range[1]);
       if (start >= data.length) {
-        return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${data.length}` } });
+        return new Response(null, {
+          status: 416,
+          headers: { 'Content-Range': `bytes */${data.length}` },
+        });
       }
       status = 206;
       slice = data.slice(start);

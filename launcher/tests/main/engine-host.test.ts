@@ -29,8 +29,18 @@ describe('SyncEngine – Host-Ablauf (Plan 4.2–4.5)', () => {
     expect(h.saveFiles()).toEqual([]);
     expect(h.journalFile()).toEqual({});
     expect(h.phases()).toEqual([
-      'verbinden', 'bereit', 'lease_holen', 'herunterladen', 'vorbereiten', 'spiel_starten', 'hosten',
-      'beenden', 'hochladen', 'lease_freigeben', 'aufraeumen', 'bereit',
+      'verbinden',
+      'bereit',
+      'lease_holen',
+      'herunterladen',
+      'vorbereiten',
+      'spiel_starten',
+      'hosten',
+      'beenden',
+      'hochladen',
+      'lease_freigeben',
+      'aufraeumen',
+      'bereit',
     ]);
     expect(h.state.lastSaveAgeSec).not.toBeNull();
   });

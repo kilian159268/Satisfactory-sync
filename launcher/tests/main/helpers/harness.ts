@@ -21,7 +21,11 @@ export const fakeCipher: SecretCipher = {
   },
 };
 
-export const silentLogger: Logger = { info: () => undefined, warn: () => undefined, error: () => undefined };
+export const silentLogger: Logger = {
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
+};
 
 export const TEST_TIMINGS: Partial<EngineTimings> = {
   processPollMs: 1_000,
@@ -69,7 +73,15 @@ export class Harness {
     this.userData = resolve('/sim', options.userData ?? `ud-${this.name}`);
     this.saveDir = resolve('/sim/local/FactoryGame/Saved/SaveGames', STEAM_ID);
     void this.fs.mkdir(this.saveDir);
-    this.fs.put(join(this.userData, 'settings.json'), JSON.stringify({ serverUrl: 'https://sync.test', platform: 'steam', saveDir: null, autostart: false }));
+    this.fs.put(
+      join(this.userData, 'settings.json'),
+      JSON.stringify({
+        serverUrl: 'https://sync.test',
+        platform: 'steam',
+        saveDir: null,
+        autostart: false,
+      }),
+    );
     if (options.loggedIn !== false) {
       const token = this.server.addUser(this.name);
       this.fs.put(join(this.userData, 'token.bin'), `enc:${token}`);
@@ -77,7 +89,9 @@ export class Harness {
     const build = options.installedBuild === undefined ? 400_000 : options.installedBuild;
     if (build !== null) {
       this.fs.put(
-        resolve('/sim/steam/steamapps/common/Satisfactory/FactoryGame/Binaries/Win64/FactoryGameSteam-Win64-Shipping.version'),
+        resolve(
+          '/sim/steam/steamapps/common/Satisfactory/FactoryGame/Binaries/Win64/FactoryGameSteam-Win64-Shipping.version',
+        ),
         JSON.stringify({ MajorVersion: 5, Changelist: build }),
       );
     }
@@ -92,7 +106,9 @@ export class Harness {
       fetch: this.server.fetch,
       run: (file, args) => {
         if (file === 'reg' && args[1] === 'HKCU\\Software\\Valve\\Steam') {
-          return Promise.resolve(`\r\nHKEY_CURRENT_USER\\Software\\Valve\\Steam\r\n    SteamPath    REG_SZ    ${resolve('/sim/steam')}\r\n`);
+          return Promise.resolve(
+            `\r\nHKEY_CURRENT_USER\\Software\\Valve\\Steam\r\n    SteamPath    REG_SZ    ${resolve('/sim/steam')}\r\n`,
+          );
         }
         return Promise.reject(new Error('nicht gefunden'));
       },
@@ -146,7 +162,11 @@ export class Harness {
   }
 
   /** Save im Save-Ordner anlegen (wie das Spiel). */
-  writeSave(file: string, spec: Partial<SaveSpec> & { playSeconds: number }, mtimeMs = this.clock.now()): Uint8Array {
+  writeSave(
+    file: string,
+    spec: Partial<SaveSpec> & { playSeconds: number },
+    mtimeMs = this.clock.now(),
+  ): Uint8Array {
     const data = buildSave({ sessionName: SESSION, ...spec });
     this.fs.put(join(this.saveDir, file), data, mtimeMs);
     return data;
@@ -183,6 +203,12 @@ export class Harness {
 }
 
 /** Server mit einem Head-Stand. */
-export function seedHead(server: FakeServer, playSeconds = 1_000, extra: Partial<SaveSpec> = {}): ReturnType<FakeServer['seedVersion']> {
-  return server.seedVersion(buildSave({ sessionName: SESSION, playSeconds, body: `head-${playSeconds}`, ...extra }));
+export function seedHead(
+  server: FakeServer,
+  playSeconds = 1_000,
+  extra: Partial<SaveSpec> = {},
+): ReturnType<FakeServer['seedVersion']> {
+  return server.seedVersion(
+    buildSave({ sessionName: SESSION, playSeconds, body: `head-${playSeconds}`, ...extra }),
+  );
 }
