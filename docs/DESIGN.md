@@ -2,12 +2,15 @@
 
 Gelten für jede Komponente, Seite und Code-Änderung.
 
-## Farben & Flächen
-- Heller, ruhiger Grund: `#FAFAFA` (Fläche), `#FFFFFF` (Seitenleiste/Kopfzeile), Text `#111111`, Nebentext `#5B5F66`.
-- Genau eine Akzentfarbe für primäre Aktionen: `#1D4ED8` (Hover `#1E40AF`).
-- Statusfarben nur für Status: Grün `#16A34A`, Bernstein `#F59E0B`, Rot `#DC2626`.
-- Abgrenzung über 1-px-Rahmen (`#E4E4E7`, `#D4D4D8`), keine schweren Schatten, kein Glassmorphismus,
-  keine Farbverläufe, keine Glows, keine Neon-Akzente.
+## Farben & Flächen (dunkel)
+- Dunkelgrau statt Schwarz: Grund `#131416`, höhere Ebenen heller (`#1A1B1E` Kopfzeile/Seitenleiste,
+  `#24262B` Hover/Dialoge). Je näher eine Ebene am Nutzer, desto heller.
+- Text `#E8E8EA` (kein reines Weiß), Nebentext `#9A9DA5`, deaktiviert `#6E717A`.
+- Genau eine Akzentfarbe, hell und entsättigt: `#93B4FF` (Hover `#B9CCFF`), dunkle Schrift darauf (`#0E1526`).
+- Keine farbigen Statuspunkte. Status steht als Text; Warnung `#F5C97A`, Fehler `#F2B8B5`.
+- Abgrenzung über 1-px-Rahmen (`#2A2C31`, `#3A3D44`), keine Schatten, kein Glassmorphismus,
+  keine Farbverläufe, keine Glows.
+- So wenig Text wie möglich: ein Titel, höchstens ein kurzer Satz pro Zustand.
 
 ## Typografie & Sprache
 - Überschriften: Bricolage Grotesque (600/700). Text: Geist (400/500/600), Tabellenziffern.
