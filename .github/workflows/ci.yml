@@ -26,8 +26,15 @@ jobs:
     outputs:
       server: ${{ steps.filter.outputs.server }}
       launcher: ${{ steps.filter.outputs.launcher }}
+      has_server: ${{ steps.present.outputs.server }}
+      has_launcher: ${{ steps.present.outputs.launcher }}
     steps:
       - uses: actions/checkout@v5
+      # Meilenstein-Branches enthalten nicht immer beide Teile (z. B. Launcher-PRs ohne server/).
+      - id: present
+        run: |
+          if [ -f server/SatisfactorySync.slnx ]; then echo "server=true" >> "$GITHUB_OUTPUT"; else echo "server=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -f launcher/package.json ]; then echo "launcher=true" >> "$GITHUB_OUTPUT"; else echo "launcher=false" >> "$GITHUB_OUTPUT"; fi
       - id: filter
         uses: dorny/paths-filter@v3
         with:
@@ -45,7 +52,7 @@ jobs:
     name: Server (.NET 10)
     needs: changes
     # Manuell gestartet: immer alles prüfen.
-    if: needs.changes.outputs.server == 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.changes.outputs.has_server == 'true' && (needs.changes.outputs.server == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -85,7 +92,7 @@ jobs:
   launcher:
     name: Launcher (Electron)
     needs: changes
-    if: needs.changes.outputs.launcher == 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.changes.outputs.has_launcher == 'true' && (needs.changes.outputs.launcher == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
