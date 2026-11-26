@@ -154,7 +154,11 @@ function MapMarker({
               transform="rotate(45)"
             />
           )}
-          <text className="mk__label" y={half + 18} textAnchor="middle">
+          <text
+            className="mk__label"
+            y={marker.kind === 'station' ? -half - 8 : half + 18}
+            textAnchor="middle"
+          >
             {marker.label}
           </text>
         </>
