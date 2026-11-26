@@ -1,0 +1,23 @@
+"UserRoamingConfigStore"
+{
+	"Software"
+	{
+		"valve"
+		{
+			"Steam"
+			{
+				"Apps"
+				{
+					"526870"
+					{
+						"cloudenabled"		"0"
+						"tags"
+						{
+							"0"		"Fabrik"
+						}
+					}
+				}
+			}
+		}
+	}
+}

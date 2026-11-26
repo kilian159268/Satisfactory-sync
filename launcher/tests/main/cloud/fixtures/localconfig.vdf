@@ -1,0 +1,33 @@
+"UserLocalConfigStore"
+{
+	"Software"
+	{
+		"Valve"
+		{
+			"Steam"
+			{
+				"SmallMode"		"0"
+				"apps"
+				{
+					"440"
+					{
+						"LastPlayed"		"1700000000"
+					}
+					"526870"
+					{
+						"LastPlayed"		"1764000000"
+						"Playtime"		"12345"
+						"cloud"
+						{
+							"last_sync_state"		"synchronized"
+						}
+					}
+				}
+			}
+		}
+	}
+	"friends"
+	{
+		"PersonaName"		"Test \"Pioneer\""
+	}
+}
