@@ -23,7 +23,8 @@ export class LauncherDirs {
     return join(this.userDataDir, 'quarantine');
   }
   get cache(): string {
-    return join(this.userDataDir, 'cache');
+    // Nicht `cache`: Unter Windows ist das derselbe Ordner wie Electrons Browser-Cache `Cache`.
+    return join(this.userDataDir, 'sync-cache');
   }
   /** Verifizierte Downloads: `<versionId>.sav`. */
   get versions(): string {

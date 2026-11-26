@@ -78,9 +78,9 @@ describe('extractMapSources', () => {
     ];
     const sources = extractMapSources({ levels: { Persistent_Level: { objects } } });
     expect(sources.objects).toEqual([
-      { typePath: CONSTRUCTOR, x: 1, y: 2 },
-      { typePath: STATION, x: 3, y: 4, name: 'Kupferhütte' },
-      { typePath: STATION, x: 5, y: 6, name: 'Ölfeld' },
+      { typePath: CONSTRUCTOR, x: 1, y: 2, z: 0 },
+      { typePath: STATION, x: 3, y: 4, z: 0, name: 'Kupferhütte' },
+      { typePath: STATION, x: 5, y: 6, z: 0, name: 'Ölfeld' },
     ]);
     expect(sources.players).toEqual([
       { name: 'Anna', x: 7, y: 8 },

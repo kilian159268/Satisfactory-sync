@@ -7,9 +7,11 @@ import {
   WORLD_BOUNDS_M,
   className,
   isMapBuilding,
+  isTerrainSample,
   readableTypeName,
   TRAIN_STATION_CLASS,
 } from './building-classes';
+import { buildTerrain, type TerrainOptions, type TerrainSample } from './terrain';
 
 /** Versionsnummer des `MapData`-Formats. */
 export const MAP_DATA_VERSION = 1;
@@ -19,6 +21,8 @@ export interface MapSourceObject {
   typePath: string;
   x: number;
   y: number;
+  /** Höhe in Spieleinheiten (cm); für das Geländerelief. */
+  z?: number | undefined;
   name?: string | undefined;
 }
 
@@ -36,6 +40,8 @@ export interface BuildMapOptions {
   maxClusters?: number;
   maxStations?: number;
   maxPlayers?: number;
+  /** Optionen für das Höhenrelief; `false` = kein Relief. */
+  terrain?: TerrainOptions | false;
 }
 
 const DEFAULTS = { cellSizeM: 200, maxClusters: 400, maxStations: 300, maxPlayers: 64 };
@@ -68,10 +74,14 @@ export function buildMapData(
   const opts = { ...DEFAULTS, ...options };
   const buildings: Building[] = [];
   const stations: MapData['stations'] = [];
+  const terrainSamples: TerrainSample[] = [];
 
   for (const obj of objects) {
     if (!isFinitePoint(obj)) continue;
     const point = toMeters(obj);
+    if (typeof obj.z === 'number' && Number.isFinite(obj.z) && isTerrainSample(obj.typePath)) {
+      terrainSamples.push({ ...point, z: obj.z / CM_PER_M });
+    }
     if (className(obj.typePath) === TRAIN_STATION_CLASS) {
       stations.push({ name: cleanName(obj.name) ?? `Bahnhof ${stations.length + 1}`, ...point });
     } else if (isMapBuilding(obj.typePath)) {
@@ -92,12 +102,29 @@ export function buildMapData(
   const keptStations = stations.slice(0, opts.maxStations);
   const keptPlayers = mapPlayers.slice(0, opts.maxPlayers);
 
+  const terrain =
+    options.terrain === false
+      ? undefined
+      : buildTerrain(terrainSamples, WORLD_BOUNDS_M, options.terrain);
+  const content = computeBounds([...buildings, ...keptStations, ...keptPlayers]);
+  // Mit Relief zeigt die Karte die ganze Welt (das Gelände reicht überall hin).
+  const bounds =
+    terrain === undefined
+      ? content
+      : {
+          minX: Math.min(content.minX, WORLD_BOUNDS_M.minX),
+          minY: Math.min(content.minY, WORLD_BOUNDS_M.minY),
+          maxX: Math.max(content.maxX, WORLD_BOUNDS_M.maxX),
+          maxY: Math.max(content.maxY, WORLD_BOUNDS_M.maxY),
+        };
+
   return {
     version: MAP_DATA_VERSION,
     clusters,
     stations: keptStations,
     players: keptPlayers,
-    bounds: computeBounds([...buildings, ...keptStations, ...keptPlayers]),
+    bounds,
+    ...(terrain === undefined ? {} : { terrain }),
   };
 }
 

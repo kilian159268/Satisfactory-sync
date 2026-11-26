@@ -11,6 +11,7 @@ Gelten für jede Komponente, Seite und Code-Änderung.
 - Keine farbigen Statuspunkte, keine Schatten, keine Verläufe, keine Glows.
 - Ausnahme: Der Schließen-Knopf der Titelleiste wird beim Hover Windows-üblich rot (`#C42B1C`, Schrift weiß).
 - Scrollbalken: 10 px, Griff `#2A2B30` mit Radius 5 px, Spur transparent.
+- Ausnahme Karte: Die Geländeebene „Farbig“ darf Höhenfarben und Schattierung zeigen (Daten, keine Deko).
 
 ## Schrift & Abstände
 - Eine Schrift: **Geist** (400/500/600). Größen: 12, 13, 14, 16, 20, 28 px.

@@ -14,6 +14,13 @@ import {
   type Point,
 } from '../lib/map-geometry';
 import { useElementSize } from '../hooks/useElementSize';
+import {
+  loadMapLayer,
+  MAP_LAYERS,
+  saveMapLayer,
+  terrainDataUrl,
+  type MapLayer,
+} from '../lib/terrain-image';
 import { Skeleton } from './Skeleton';
 import './map.css';
 
@@ -180,6 +187,7 @@ export function MapView({ head, live, loading }: MapViewProps) {
   const [showPlayers, setShowPlayers] = useState(true);
   const [zoom, setZoom] = useState<number>(ZOOM_LEVELS[0]);
   const [selection, setSelection] = useState<Selection>(null);
+  const [layer, setLayer] = useState<MapLayer>(loadMapLayer);
   const [svgRef, svgSize] = useElementSize();
 
   useEffect(() => {
@@ -212,6 +220,15 @@ export function MapView({ head, live, loading }: MapViewProps) {
     [data, frame, live, label],
   );
   const grid = useMemo(() => (frame === null ? [] : gridLines(frame)), [frame]);
+  const terrain = data?.terrain;
+  const activeLayer: MapLayer = terrain === undefined ? 'schematisch' : layer;
+  const terrainUrl = useMemo(
+    () =>
+      terrain === undefined || activeLayer === 'schematisch'
+        ? null
+        : terrainDataUrl(terrain, activeLayer),
+    [terrain, activeLayer],
+  );
 
   const visible = markers.filter((m) => (m.kind === 'player' ? showPlayers : showBuildings));
   const selected =
@@ -266,9 +283,20 @@ export function MapView({ head, live, loading }: MapViewProps) {
     markerScale,
     selected === null ? null : keyOf(selected),
   );
+  const terrainBox =
+    terrain === undefined
+      ? null
+      : (() => {
+          const a = frame.project(terrain.minX, terrain.minY);
+          const b = frame.project(
+            terrain.minX + terrain.cols * terrain.cellSize,
+            terrain.minY + terrain.rows * terrain.cellSize,
+          );
+          return { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y };
+        })();
 
   return (
-    <section className="map" aria-label="Karte">
+    <section className={`map map--layer-${activeLayer}`} aria-label="Karte">
       <svg
         ref={svgRef}
         className="map__svg"
@@ -284,11 +312,25 @@ export function MapView({ head, live, loading }: MapViewProps) {
           width={extent * 2 + frame.width}
           height={extent * 2 + frame.height}
         />
-        <g className="map__grid" aria-hidden="true">
-          {grid.map((line) => (
-            <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} />
-          ))}
-        </g>
+        {terrainUrl !== null && terrainBox !== null && (
+          <image
+            className="map__terrain"
+            href={terrainUrl}
+            x={terrainBox.x}
+            y={terrainBox.y}
+            width={terrainBox.width}
+            height={terrainBox.height}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          />
+        )}
+        {activeLayer !== 'farbig' && (
+          <g className="map__grid" aria-hidden="true">
+            {grid.map((line) => (
+              <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} />
+            ))}
+          </g>
+        )}
         {ordered.map((marker) => (
           <MapMarker
             key={`${marker.kind}-${marker.id}`}
@@ -324,6 +366,30 @@ export function MapView({ head, live, loading }: MapViewProps) {
         >
           Spieler
         </button>
+        <span className="map__divider" aria-hidden="true" />
+        <div className="map__layers" role="group" aria-label="Ebene">
+          {MAP_LAYERS.map((l) => {
+            const unavailable = terrain === undefined && l.id !== 'schematisch';
+            return (
+              <button
+                key={l.id}
+                type="button"
+                className="map__filter"
+                aria-pressed={activeLayer === l.id}
+                disabled={unavailable}
+                title={
+                  unavailable ? 'Gelände gibt es ab dem nächsten Upload des Hosts.' : undefined
+                }
+                onClick={() => {
+                  setLayer(l.id);
+                  saveMapLayer(l.id);
+                }}
+              >
+                {l.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="map__zoom">

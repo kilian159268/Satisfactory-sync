@@ -181,6 +181,27 @@ export type RedeemInviteInput = z.infer<typeof RedeemInviteInputSchema>;
 
 const FiniteSchema = z.number();
 
+/** Höhenraster: Zelle (c, r) liegt bei minX + c·cellSize, minY + r·cellSize (Meter). */
+export const TERRAIN_NO_DATA = -32768;
+export const TerrainSchema = z
+  .object({
+    minX: FiniteSchema,
+    minY: FiniteSchema,
+    /** Kantenlänge einer Zelle in Metern. */
+    cellSize: z.number().positive().max(10_000),
+    cols: z.number().int().min(1).max(512),
+    rows: z.number().int().min(1).max(512),
+    minZ: FiniteSchema,
+    maxZ: FiniteSchema,
+    /** Höhe, unter der Wasser gezeichnet wird (Meter). */
+    waterZ: FiniteSchema,
+    /** Int16 little-endian, zeilenweise, Meter; `TERRAIN_NO_DATA` = unbekannt. Base64. */
+    heights: z.string().max(700_000),
+  })
+  .refine((t) => Math.floor((t.heights.length * 3) / 4) >= t.cols * t.rows * 2 - 2, {
+    error: 'Höhenraster zu kurz',
+  });
+
 export const MapDataSchema = z.object({
   version: z.number().int(),
   clusters: z.array(
@@ -200,8 +221,11 @@ export const MapDataSchema = z.object({
     maxX: FiniteSchema,
     maxY: FiniteSchema,
   }),
+  /** Geschätztes Höhenrelief (Plan 6.6); fehlt bei älteren Karten. */
+  terrain: TerrainSchema.optional(),
 });
 export type MapData = z.infer<typeof MapDataSchema>;
+export type Terrain = z.infer<typeof TerrainSchema>;
 
 // ---------------------------------------------------------------- Kanäle
 

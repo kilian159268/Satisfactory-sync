@@ -3,16 +3,18 @@
  * lauffähig ist. Wird vom Kern-Agenten in create-backend.ts durch die echte Engine ersetzt.
  * Die Namen sind bewusst als Testdaten erkennbar.
  */
-import type {
-  ActionResult,
-  AppState,
-  CrewView,
-  MapData,
-  Phase,
-  RedeemInviteInput,
-  Settings,
-  SettingsPatch,
-  VersionView,
+import { readFileSync } from 'node:fs';
+import {
+  MapDataSchema,
+  type ActionResult,
+  type AppState,
+  type CrewView,
+  type MapData,
+  type Phase,
+  type RedeemInviteInput,
+  type Settings,
+  type SettingsPatch,
+  type VersionView,
 } from '../shared/ipc';
 import { DEFAULT_SERVER_URL } from '../shared/api-types';
 import type { LauncherBackend, StateListener, Unsubscribe } from './backend';
@@ -257,7 +259,18 @@ export class StubBackend implements LauncherBackend {
   }
 
   getMap(versionId: number): Promise<MapData | null> {
-    return Promise.resolve(this.versions.some((v) => v.id === versionId) ? STUB_MAP : null);
+    if (!this.versions.some((v) => v.id === versionId)) return Promise.resolve(null);
+    // Nur für Entwicklung/Sichtprüfung: echte map.json aus einer Datei statt der Testkarte.
+    const file = process.env.SCHICHTWECHSEL_STUB_MAP;
+    if (file !== undefined && file !== '') {
+      try {
+        const parsed = MapDataSchema.safeParse(JSON.parse(readFileSync(file, 'utf8')));
+        if (parsed.success) return Promise.resolve(parsed.data);
+      } catch {
+        // Testkarte nehmen
+      }
+    }
+    return Promise.resolve(STUB_MAP);
   }
 
   getSettings(): Promise<Settings> {
