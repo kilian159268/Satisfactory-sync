@@ -344,7 +344,7 @@ export class SyncEngine implements LauncherBackend {
     if (this.game.isRunning()) return { ok: false, error: 'Das Spiel läuft bereits.' };
     const platform = this.settings.get().platform;
     if (platform === null) return { ok: false, error: TEXT.noPlatform };
-    if (!(await this.deps.openExternal(launchUriFor(platform, this.installed?.epic?.appName)))) {
+    if (!(await this.deps.openExternal(launchUriFor(platform, this.installed?.epic)))) {
       return { ok: false, error: 'Satisfactory konnte nicht gestartet werden.' };
     }
     return { ok: true, message: 'Satisfactory wird gestartet.' };
@@ -973,7 +973,7 @@ export class SyncEngine implements LauncherBackend {
       await this.goJournaled('PREPARED');
 
       // 7. Spiel über den Store-Launcher starten und auf den Prozess warten.
-      if (!(await this.deps.openExternal(launchUriFor(platform, this.installed?.epic?.appName)))) {
+      if (!(await this.deps.openExternal(launchUriFor(platform, this.installed?.epic)))) {
         throw new FlowError('Satisfactory konnte nicht gestartet werden.');
       }
       const started = await this.waitForGame(this.t.gameStartTimeoutMs);
@@ -1012,7 +1012,7 @@ export class SyncEngine implements LauncherBackend {
           ? this.state.host
           : { name: host.name, since: host.since, isMe: host.name === me },
     });
-    if (!(await this.deps.openExternal(launchUriFor(platform, this.installed?.epic?.appName)))) {
+    if (!(await this.deps.openExternal(launchUriFor(platform, this.installed?.epic)))) {
       this.go('GAME_ENDED', {
         message: null,
         error: 'Satisfactory konnte nicht gestartet werden.',

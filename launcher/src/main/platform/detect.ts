@@ -7,11 +7,14 @@ import type { Platform } from '../../shared/ipc';
 import {
   EPIC_APP_NAME_PATTERN,
   EPIC_APP_NAME_PREFIX,
+  EPIC_CATALOG_NAMESPACE,
   EPIC_DEFAULT_APP_NAME,
   EPIC_DISPLAY_NAME,
   EPIC_MANIFEST_DIR,
+  EPIC_ROOT_EXE,
   EPIC_SAVE_ID,
-  GAME_BINARIES_DIR,
+  EPIC_SCAN_SUBPATHS,
+  GAME_BINARIES_DIRS,
   GAME_VERSION_FIELD,
   GAME_VERSION_FILES,
   SAVE_EXTENSION,
@@ -134,15 +137,43 @@ export async function findSteamGameDir(fs: FileSystem, steamRoot: string): Promi
 
 export interface EpicGame {
   gameDir: string;
-  /** AppName aus dem Manifest, z. B. `Crab` oder der Name der Experimental-Version. */
+  /** AppName, z. B. `CrabEA`. */
   appName: string;
+  /** Aus `.egstore\*.mancpn` (für die vollständige Start-Kennung), falls vorhanden. */
+  namespace?: string | undefined;
+  itemId?: string | undefined;
 }
 
-/**
- * Sucht Satisfactory in den Epic-Manifesten. Sind mehrere Versionen installiert (normal und
- * Experimental), gewinnt die normale (`Crab`), sonst die erste gefundene.
- */
-export async function findEpicGame(fs: FileSystem, programData: string): Promise<EpicGame | null> {
+const safe = (v: unknown): string | undefined =>
+  typeof v === 'string' && EPIC_APP_NAME_PATTERN.test(v) ? v : undefined;
+
+/** Liest die Epic-Kennung aus `<gameDir>/.egstore/*.mancpn`; nur für Satisfactory (Namespace `crab`). */
+export async function readEpicCatalog(
+  fs: FileSystem,
+  gameDir: string,
+): Promise<{ appName: string; namespace: string; itemId: string } | null> {
+  const store = join(gameDir, '.egstore');
+  for (const name of await fs.readdir(store)) {
+    if (!name.toLowerCase().endsWith('.mancpn')) continue;
+    try {
+      const m = JSON.parse(
+        new TextDecoder().decode(await fs.readFile(join(store, name))),
+      ) as Record<string, unknown>;
+      const appName = safe(m.AppName);
+      const namespace = safe(m.CatalogNamespace);
+      const itemId = safe(m.CatalogItemId);
+      if (appName && namespace && itemId && namespace.toLowerCase() === EPIC_CATALOG_NAMESPACE) {
+        return { appName, namespace, itemId };
+      }
+    } catch {
+      // nächste Datei
+    }
+  }
+  return null;
+}
+
+/** Spiele aus den klassischen Epic-Manifesten unter ProgramData. */
+async function epicGamesFromManifests(fs: FileSystem, programData: string): Promise<EpicGame[]> {
   const dir = join(programData, ...EPIC_MANIFEST_DIR);
   const found: EpicGame[] = [];
   for (const name of await fs.readdir(dir)) {
@@ -159,16 +190,69 @@ export async function findEpicGame(fs: FileSystem, programData: string): Promise
     const display = typeof m.DisplayName === 'string' ? m.DisplayName : '';
     const location = m.InstallLocation;
     if (typeof location !== 'string') continue;
-    if (appName.startsWith(EPIC_APP_NAME_PREFIX) || display.trim().startsWith(EPIC_DISPLAY_NAME)) {
-      if ((await fs.stat(location))?.isDirectory === true) {
-        found.push({
-          gameDir: location,
-          appName: EPIC_APP_NAME_PATTERN.test(appName) ? appName : EPIC_DEFAULT_APP_NAME,
-        });
+    if (
+      !appName.startsWith(EPIC_APP_NAME_PREFIX) &&
+      !display.trim().startsWith(EPIC_DISPLAY_NAME)
+    ) {
+      continue;
+    }
+    if ((await fs.stat(location))?.isDirectory !== true) continue;
+    found.push({
+      gameDir: location,
+      appName: safe(appName) ?? EPIC_DEFAULT_APP_NAME,
+      namespace: safe(m.CatalogNamespace),
+      itemId: safe(m.CatalogItemId),
+    });
+  }
+  return found;
+}
+
+/** Spiele in typischen Ordnern der Laufwerke (für Epic-Installationen ohne ProgramData-Manifeste). */
+async function epicGamesFromFolders(
+  fs: FileSystem,
+  driveRoots: readonly string[],
+): Promise<EpicGame[]> {
+  const found: EpicGame[] = [];
+  for (const root of driveRoots) {
+    for (const sub of EPIC_SCAN_SUBPATHS) {
+      const base = join(root, ...sub);
+      for (const name of await fs.readdir(base)) {
+        const gameDir = join(base, name);
+        const catalog = await readEpicCatalog(fs, gameDir);
+        if (catalog !== null) found.push({ gameDir, ...catalog });
       }
     }
   }
-  return found.find((g) => g.appName === EPIC_DEFAULT_APP_NAME) ?? found[0] ?? null;
+  return found;
+}
+
+/**
+ * Sucht Satisfactory bei Epic: erst die Manifeste unter ProgramData, dann Spielordner auf den
+ * Laufwerken (`.egstore`). Echte Epic-Installationen (mit `FactoryGameEGS.exe`) gehen vor;
+ * danach die normale Version (`CrabEA`) vor anderen.
+ */
+export async function findEpicGame(
+  fs: FileSystem,
+  programData: string | null,
+  driveRoots: readonly string[] = [],
+): Promise<EpicGame | null> {
+  const candidates = programData === null ? [] : await epicGamesFromManifests(fs, programData);
+  for (const g of await epicGamesFromFolders(fs, driveRoots)) {
+    if (!candidates.some((c) => c.gameDir.toLowerCase() === g.gameDir.toLowerCase()))
+      candidates.push(g);
+  }
+  const ranked: { game: EpicGame; score: number }[] = [];
+  for (const game of candidates) {
+    const catalog = game.namespace === undefined ? await readEpicCatalog(fs, game.gameDir) : null;
+    const full = catalog === null ? game : { ...game, ...catalog };
+    const genuine = (await fs.stat(join(full.gameDir, EPIC_ROOT_EXE)))?.isFile === true;
+    ranked.push({
+      game: full,
+      score: (genuine ? 2 : 0) + (full.appName === EPIC_DEFAULT_APP_NAME ? 1 : 0),
+    });
+  }
+  ranked.sort((a, b) => b.score - a.score);
+  return ranked[0]?.game ?? null;
 }
 
 /** Nur der Spielordner (für ältere Aufrufer). */
@@ -183,6 +267,8 @@ export interface PlatformEnv {
   localAppData: string | null;
   /** %PROGRAMDATA% */
   programData: string | null;
+  /** Vorhandene Laufwerke, z. B. `C:\`, `D:\` (für die Suche nach Epic-Spielordnern). */
+  driveRoots?: readonly string[];
 }
 
 export interface InstalledGames {
@@ -200,9 +286,7 @@ export async function detectInstalledGames(
   if (steamRoot !== null) {
     result.steam = { root: steamRoot, gameDir: await findSteamGameDir(fs, steamRoot) };
   }
-  if (env.programData !== null) {
-    result.epic = await findEpicGame(fs, env.programData);
-  }
+  result.epic = await findEpicGame(fs, env.programData, env.driveRoots ?? []);
   return result;
 }
 
@@ -220,8 +304,10 @@ export async function readInstalledBuild(
   gameDir: string,
   platform: Platform,
 ): Promise<number | null> {
-  for (const file of GAME_VERSION_FILES[platform]) {
-    const path = join(gameDir, ...GAME_BINARIES_DIR, file);
+  const paths = GAME_BINARIES_DIRS.flatMap((dir) =>
+    GAME_VERSION_FILES[platform].map((file) => join(gameDir, ...dir, file)),
+  );
+  for (const path of paths) {
     if ((await fs.stat(path)) === null) continue;
     try {
       const json = JSON.parse(new TextDecoder().decode(await fs.readFile(path))) as unknown;
