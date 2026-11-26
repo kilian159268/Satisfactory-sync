@@ -93,13 +93,21 @@ describe('Registry & Steam', () => {
 });
 
 describe('Epic', () => {
+  const MAN = () => resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
+  const mancpn = (appName: string, ns = 'crab', item = 'b915dfe8dcf74770841c82a4162dc954') =>
+    JSON.stringify({
+      FormatVersion: 0,
+      CatalogNamespace: ns,
+      CatalogItemId: item,
+      AppName: appName,
+    });
+
   it('findet Satisfactory in den Manifesten (ProgramData)', async () => {
     const fs = new MemoryFs();
-    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
-    fs.put(join(man, 'a.item'), JSON.stringify({ AppName: 'Fortnite', InstallLocation: '/x' }));
-    fs.put(join(man, 'b.item'), '{kaputt');
+    fs.put(join(MAN(), 'a.item'), JSON.stringify({ AppName: 'Fortnite', InstallLocation: '/x' }));
+    fs.put(join(MAN(), 'b.item'), '{kaputt');
     fs.put(
-      join(man, 'c.item'),
+      join(MAN(), 'c.item'),
       JSON.stringify({
         AppName: 'CrabEA',
         DisplayName: 'Satisfactory',
@@ -112,19 +120,54 @@ describe('Epic', () => {
       localAppData: null,
       programData: resolve('/pd'),
     });
-    expect(games).toEqual({
-      steam: null,
-      epic: { gameDir: resolve('/epic/Satisfactory'), appName: 'CrabEA' },
-    });
+    expect(games.steam).toBeNull();
+    expect(games.epic).toMatchObject({ gameDir: resolve('/epic/Satisfactory'), appName: 'CrabEA' });
     expect(suggestPlatform(games)).toBe('epic');
     expect(suggestPlatform({ steam: null, epic: null })).toBeNull();
   });
 
+  it('ohne ProgramData-Manifeste: findet das Spiel über .egstore auf den Laufwerken', async () => {
+    // Nachbau einer echten Installation (per-Benutzer-Epic-Launcher, 2026-11-26).
+    const fs = new MemoryFs();
+    const d = resolve('/D');
+    fs.put(join(d, 'Satisfactory', '.egstore', '1911C983.mancpn'), mancpn('CrabEA'));
+    fs.put(join(d, 'Satisfactory', 'FactoryGameEGS.exe'), 'exe');
+    fs.put(join(d, 'SatisfactoryEarlyAccess', '.egstore', '695BB641.mancpn'), mancpn('CrabEA'));
+    fs.put(join(d, 'SatisfactoryEarlyAccess', 'FactoryGame.exe'), 'exe');
+    fs.put(join(d, 'Andere', '.egstore', 'x.mancpn'), mancpn('Fortnite', 'fn', 'abc'));
+    const games = await detectInstalledGames(fs, () => Promise.reject(new Error('kein Steam')), {
+      localAppData: null,
+      programData: resolve('/pd-leer'),
+      driveRoots: [d],
+    });
+    expect(games.epic).toEqual({
+      gameDir: join(d, 'Satisfactory'),
+      appName: 'CrabEA',
+      namespace: 'crab',
+      itemId: 'b915dfe8dcf74770841c82a4162dc954',
+    });
+    expect(launchUriFor('epic', games.epic)).toBe(
+      'com.epicgames.launcher://apps/crab%3Ab915dfe8dcf74770841c82a4162dc954%3ACrabEA?action=launch&silent=true',
+    );
+  });
+
+  it('sucht auch in „Program Files/Epic Games“, „Games“ und „Spiele“', async () => {
+    for (const sub of [['Program Files', 'Epic Games'], ['Games'], ['Spiele']]) {
+      const fs = new MemoryFs();
+      const d = resolve('/E');
+      fs.put(
+        join(d, ...sub, 'SatisfactoryExperimental', '.egstore', 'm.mancpn'),
+        mancpn('CrabTest'),
+      );
+      const game = await findEpicGame(fs, null, [d]);
+      expect(game?.appName).toBe('CrabTest');
+    }
+  });
+
   it('nur Experimental installiert → startet genau diese Version', async () => {
     const fs = new MemoryFs();
-    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
     fs.put(
-      join(man, 'x.item'),
+      join(MAN(), 'x.item'),
       JSON.stringify({
         AppName: 'CrabTest',
         DisplayName: 'Satisfactory Experimental',
@@ -133,61 +176,60 @@ describe('Epic', () => {
     );
     await fs.mkdir(resolve('/epic/SatisfactoryExperimental'));
     const game = await findEpicGame(fs, resolve('/pd'));
-    expect(game).toEqual({
+    expect(game).toMatchObject({
       gameDir: resolve('/epic/SatisfactoryExperimental'),
       appName: 'CrabTest',
     });
-    expect(launchUriFor('epic', game?.appName)).toBe(
+    expect(launchUriFor('epic', game)).toBe(
       'com.epicgames.launcher://apps/CrabTest?action=launch&silent=true',
     );
   });
 
-  it('Experimental am Anzeigenamen erkannt, auch wenn der AppName anders heißt', async () => {
+  it('beide installiert → normale Version (CrabEA) gewinnt', async () => {
     const fs = new MemoryFs();
-    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
     fs.put(
-      join(man, 'x.item'),
-      JSON.stringify({
-        AppName: 'abc123def',
-        DisplayName: 'Satisfactory Experimental',
-        InstallLocation: resolve('/epic/SE'),
-      }),
-    );
-    await fs.mkdir(resolve('/epic/SE'));
-    expect((await findEpicGame(fs, resolve('/pd')))?.appName).toBe('abc123def');
-  });
-
-  it('beide installiert → normale Version (Crab) gewinnt', async () => {
-    const fs = new MemoryFs();
-    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
-    fs.put(
-      join(man, 'a.item'),
+      join(MAN(), 'a.item'),
       JSON.stringify({ AppName: 'CrabTest', InstallLocation: resolve('/epic/Exp') }),
     );
     fs.put(
-      join(man, 'b.item'),
-      JSON.stringify({ AppName: 'Crab', InstallLocation: resolve('/epic/Std') }),
+      join(MAN(), 'b.item'),
+      JSON.stringify({ AppName: 'CrabEA', InstallLocation: resolve('/epic/Std') }),
     );
     await fs.mkdir(resolve('/epic/Exp'));
     await fs.mkdir(resolve('/epic/Std'));
-    expect(await findEpicGame(fs, resolve('/pd'))).toEqual({
+    expect(await findEpicGame(fs, resolve('/pd'))).toMatchObject({
       gameDir: resolve('/epic/Std'),
-      appName: 'Crab',
+      appName: 'CrabEA',
     });
   });
 
-  it('verdächtiger AppName wird nicht in den Startbefehl übernommen', async () => {
+  it('verdächtige Werte werden nicht in den Startbefehl übernommen', async () => {
     const fs = new MemoryFs();
-    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
     fs.put(
-      join(man, 'a.item'),
+      join(MAN(), 'a.item'),
       JSON.stringify({ AppName: 'Crab?x=1&y', InstallLocation: resolve('/epic/S') }),
     );
     await fs.mkdir(resolve('/epic/S'));
-    expect((await findEpicGame(fs, resolve('/pd')))?.appName).toBe('Crab');
+    expect((await findEpicGame(fs, resolve('/pd')))?.appName).toBe('CrabEA');
     expect(launchUriFor('epic')).toBe(
-      'com.epicgames.launcher://apps/Crab?action=launch&silent=true',
+      'com.epicgames.launcher://apps/CrabEA?action=launch&silent=true',
     );
+    expect(launchUriFor('epic', { appName: 'CrabEA', namespace: 'crab', itemId: 'a/b' })).toBe(
+      'com.epicgames.launcher://apps/CrabEA?action=launch&silent=true',
+    );
+  });
+
+  it('liest die .version-Datei auch unter Engine/Binaries/Win64 (Build 463028, Epic)', async () => {
+    const fs = new MemoryFs();
+    fs.put(
+      resolve('/g/Engine/Binaries/Win64/FactoryGameEGS-Win64-Shipping.version'),
+      JSON.stringify({ MajorVersion: 5, Changelist: 463028, BuildId: '463028' }),
+    );
+    expect(await readInstalledBuild(fs, resolve('/g'), 'epic')).toBe(463028);
+  });
+
+  it('nichts gefunden → null', async () => {
+    expect(await findEpicGame(new MemoryFs(), resolve('/pd'), [resolve('/D')])).toBeNull();
   });
 });
 
@@ -228,7 +270,7 @@ describe('Spielprozess', () => {
   it('Start-URIs', () => {
     expect(launchUriFor('steam')).toBe('steam://rungameid/526870');
     expect(launchUriFor('epic')).toBe(
-      'com.epicgames.launcher://apps/Crab?action=launch&silent=true',
+      'com.epicgames.launcher://apps/CrabEA?action=launch&silent=true',
     );
   });
 
