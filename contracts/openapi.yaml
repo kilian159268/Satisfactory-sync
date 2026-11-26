@@ -58,18 +58,21 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 24
-                  description: Wird getrimmt; keine Steuerzeichen; eindeutig ohne Beachtung der Groß-/Kleinschreibung.
+                  description: >-
+                    Wird getrimmt; keine Steuerzeichen; eindeutig ohne Beachtung der Groß-/Kleinschreibung.
+                    Bei einem Verknüpfungscode (weiterer Zugang eines bestehenden Spielers) wird der Name ignoriert.
       responses:
         '200':
-          description: Eingelöst.
+          description: Eingelöst. Bei einem Verknüpfungscode ist `linked` true und `name` der bestehende Spielername.
           content:
             application/json:
               schema:
                 type: object
-                required: [token, name]
+                required: [token, name, linked]
                 properties:
                   token: { type: string }
                   name: { type: string }
+                  linked: { type: boolean }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401':
           description: '`invite_invalid` – Code unbekannt oder schon benutzt.'
@@ -93,6 +96,26 @@ paths:
                 required: [name]
                 properties:
                   name: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/me/link-code:
+    post:
+      operationId: createLinkCode
+      summary: >-
+        Code für einen weiteren Zugang desselben Spielers (zweites Spielkonto oder zweiter PC).
+        Einlösen über /api/auth/redeem; beide Zugänge sind dieselbe Person. 24 Stunden gültig, einmal einlösbar.
+      responses:
+        '200':
+          description: Neuer Verknüpfungscode.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, expiresAt]
+                properties:
+                  code: { type: string, description: 'Format XXXX-XXXX-XXXX' }
+                  expiresAt: { type: string, format: date-time }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '429': { $ref: '#/components/responses/RateLimited' }
 

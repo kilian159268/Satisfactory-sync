@@ -56,9 +56,9 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
             var leaseId = Guid.NewGuid().ToString("N");
             var expires = now + (long)options.LeaseDuration.TotalMilliseconds;
             c.Exec(tx, """
-                INSERT OR REPLACE INTO leases(id, lease_id, user_id, fencing_token, base_version_id, acquired_at, expires_at)
-                VALUES (1, $l, $u, $f, $b, $n, $e)
-                """, ("$l", leaseId), ("$u", user.Id), ("$f", token), ("$b", headId), ("$n", now), ("$e", expires));
+                INSERT OR REPLACE INTO leases(id, lease_id, user_id, fencing_token, base_version_id, acquired_at, expires_at, device_id)
+                VALUES (1, $l, $u, $f, $b, $n, $e, $d)
+                """, ("$l", leaseId), ("$u", user.Id), ("$f", token), ("$b", headId), ("$n", now), ("$e", expires), ("$d", user.DeviceId == 0 ? null : user.DeviceId));
             Audit(c, tx, user.Id, "lease_acquired", $"token={token}");
             var head = headId is { } h ? GetVersion(c, tx, h) : null;
             return Result<LeaseGrant>.Success(new LeaseGrant(leaseId, token, headId ?? 0, DateTimeOffset.FromUnixTimeMilliseconds(expires), head));
@@ -103,7 +103,10 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
         });
     }
 
-    /// <summary>Hängende Lease lösen: nur wenn abgelaufen oder vom Host selbst.</summary>
+    /// <summary>
+    /// Hängende Lease lösen: nur wenn abgelaufen oder vom hostenden Gerät selbst. Ein zweiter Zugang
+    /// desselben Spielers darf eine laufende Host-Rolle nicht wegnehmen.
+    /// </summary>
     public Result<bool> ForceRelease(User user)
     {
         ArgumentNullException.ThrowIfNull(user);
@@ -116,7 +119,7 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
                 return Result<bool>.Success(false);
             }
 
-            if (lease.ExpiresAt > now && lease.UserId != user.Id)
+            if (lease.ExpiresAt > now && !IsHostDevice(lease, user))
             {
                 return Errors.LeaseActive;
             }
@@ -293,7 +296,7 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
 
         var current = c.Scalar<long>(tx, "SELECT value FROM fencing_counter WHERE id = 1");
         var lease = ReadLease(c, tx);
-        if (token != current || lease is null || lease.FencingToken != token || lease.UserId != user.Id)
+        if (token != current || lease is null || lease.FencingToken != token || !IsHostDevice(lease, user))
         {
             return "stale_token";
         }
@@ -477,9 +480,9 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
 
         var now = Now;
         db.Write((c, tx) => c.Exec(tx, """
-            INSERT INTO presence(user_id, status, last_seen) VALUES ($u, $s, $t)
-            ON CONFLICT(user_id) DO UPDATE SET status = excluded.status, last_seen = excluded.last_seen
-            """, ("$u", user.Id), ("$s", status), ("$t", now)));
+            INSERT INTO device_presence(user_id, device_id, status, last_seen) VALUES ($u, $d, $s, $t)
+            ON CONFLICT(user_id, device_id) DO UPDATE SET status = excluded.status, last_seen = excluded.last_seen
+            """, ("$u", user.Id), ("$d", user.DeviceId), ("$s", status), ("$t", now)));
     }
 
     public IReadOnlyList<CrewMember> GetCrew() => db.Read(c =>
@@ -488,20 +491,26 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
         var offlineAfter = (long)options.OfflineAfter.TotalMilliseconds;
         var lease = ReadLease(c, null);
         var hostId = lease is not null && lease.ExpiresAt > now ? lease.UserId : (long?)null;
-        return c.Query(null, """
-            SELECT u.id, u.name, p.status, p.last_seen FROM users u
-            LEFT JOIN presence p ON p.user_id = u.id
-            WHERE u.blocked = 0 ORDER BY u.name
-            """, r =>
+        // Mehrere Geräte je Spieler: online, wenn eines online ist; „im Spiel“, wenn eines im Spiel ist.
+        var devices = c.Query(null, "SELECT user_id, status, last_seen FROM device_presence",
+            r => (UserId: r.GetInt64(0), Status: r.GetString(1), LastSeen: r.GetInt64(2)))
+            .ToLookup(d => d.UserId);
+        return c.Query(null, "SELECT id, name FROM users WHERE blocked = 0 ORDER BY name", r =>
         {
-            var lastSeen = r.NullableInt64("last_seen");
-            var online = lastSeen is { } ls && now - ls <= offlineAfter;
+            var id = r.GetInt64(0);
+            var mine = devices[id].ToList();
+            long? lastSeen = mine.Count == 0 ? null : mine.Max(d => d.LastSeen);
+            var onlineDevices = mine.Where(d => now - d.LastSeen <= offlineAfter).ToList();
+            var online = onlineDevices.Count > 0;
+            string? status = !online ? null
+                : onlineDevices.Any(d => d.Status == PresenceStatus.InGame) ? PresenceStatus.InGame
+                : PresenceStatus.Launcher;
             return new CrewMember(
                 r.GetString(1),
                 online,
-                online ? r.NullableString("status") : null,
+                status,
                 lastSeen is { } t ? DateTimeOffset.FromUnixTimeMilliseconds(t) : null,
-                hostId == r.GetInt64(0));
+                hostId == id);
         });
     });
 
@@ -512,7 +521,7 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
 
     // ---------------------------------------------------------------- intern
 
-    private sealed record LeaseRow(string LeaseId, long UserId, long FencingToken, long? BaseVersionId, long AcquiredAt, long ExpiresAt);
+    private sealed record LeaseRow(string LeaseId, long UserId, long FencingToken, long? BaseVersionId, long AcquiredAt, long ExpiresAt, long? DeviceId);
 
     private string VersionPath(long id) => Path.Combine(options.VersionsDir, id.ToString(CultureInfo.InvariantCulture) + ".sav");
 
@@ -533,9 +542,13 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
         File.Move(temp, target);
     }
 
+    /// <summary>Gehört die Lease diesem Spieler UND diesem Zugang (Gerät)? Alte Leases ohne Gerät: nur Spieler.</summary>
+    private static bool IsHostDevice(LeaseRow lease, User user) =>
+        lease.UserId == user.Id && (lease.DeviceId is null || lease.DeviceId == user.DeviceId);
+
     private static LeaseRow? ReadLease(SqliteConnection c, SqliteTransaction? tx) =>
-        c.Query(tx, "SELECT lease_id, user_id, fencing_token, base_version_id, acquired_at, expires_at FROM leases WHERE id = 1",
-            r => new LeaseRow(r.GetString(0), r.GetInt64(1), r.GetInt64(2), r.NullableInt64("base_version_id"), r.GetInt64(4), r.GetInt64(5))).FirstOrDefault();
+        c.Query(tx, "SELECT lease_id, user_id, fencing_token, base_version_id, acquired_at, expires_at, device_id FROM leases WHERE id = 1",
+            r => new LeaseRow(r.GetString(0), r.GetInt64(1), r.GetInt64(2), r.NullableInt64("base_version_id"), r.GetInt64(4), r.GetInt64(5), r.NullableInt64("device_id"))).FirstOrDefault();
 
     private HostInfo? ReadHost(SqliteConnection c, SqliteTransaction? tx)
     {
@@ -552,7 +565,7 @@ public sealed class SyncService(SyncDatabase db, SyncOptions options, TimeProvid
     {
         var lease = ReadLease(c, tx);
         var current = c.Scalar<long>(tx, "SELECT value FROM fencing_counter WHERE id = 1");
-        return lease is not null && lease.UserId == user.Id && lease.FencingToken == token && token == current;
+        return lease is not null && IsHostDevice(lease, user) && lease.FencingToken == token && token == current;
     }
 
     private static (string? Session, long? HeadId) ReadWorld(SqliteConnection c, SqliteTransaction? tx) =>

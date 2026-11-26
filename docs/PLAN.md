@@ -196,6 +196,17 @@ wird daraus erzeugt. So können Server und Launcher nicht auseinanderlaufen.
 - Rate-Limits sind einstellbar (`Sync:RedeemPerMinute`, `Sync:RequestBurst`, `Sync:RequestsPerMinute`); jede
   Fehlerantwort hat das Format `{error, message, details}`.
 
+**Mehrere Zugänge pro Spieler (ergänzt 2026-11-26):** Ein Spieler kann mehrere Tokens haben, z. B. für ein
+zweites Spielkonto oder einen zweiten PC. Alle gehören zur selben Person (ein Name, ein Verlauf).
+- Launcher: Einstellungen → „Zweiten Zugang verknüpfen“ erzeugt einen Verknüpfungscode
+  (`POST /api/me/link-code`, 24 Std. gültig, einmal einlösbar); auf dem anderen Konto beim Anmelden eingeben.
+- Kommandozeile: `invite --for NAME` (Verknüpfungscode für NAME), `link NAME ZWEIT` (Spieler ZWEIT samt Zugängen,
+  Versionen und Verlauf in NAME zusammenführen).
+- Die Lease merkt sich das Gerät (Token). Heartbeat, Freigabe, Upload und „Lease lösen“ durch den Host gehen
+  nur vom hostenden Gerät; ein zweiter Zugang desselben Spielers kann eine laufende Host-Rolle nicht übernehmen.
+- Anwesenheit pro Gerät; in der Gruppe ist der Spieler online, wenn eines seiner Geräte online ist, und
+  „im Spiel“, wenn eines im Spiel ist.
+
 ### 5.3 Upload – so wird es wasserdicht
 
 Header: `Lease-Token`, `Base-Version`, `Content-SHA256`, `Idempotency-Key`.
