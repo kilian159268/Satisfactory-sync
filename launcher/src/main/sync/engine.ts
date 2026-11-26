@@ -84,6 +84,7 @@ import { SaveWatcher } from '../saves/save-watcher';
 import { SettingsStore } from '../storage/settings-store';
 import { TokenStore } from '../storage/token-store';
 import { JournalStore, type Journal, type PendingUpload } from './journal';
+import { GameBuildStore, isTooNew } from '../game-builds';
 import { recoveryFor, SESSION_PHASES, transition, type EngineEvent } from './state-machine';
 import { clockTime, hostView, toCrewView, toVersionView } from './views';
 
@@ -213,6 +214,7 @@ export class SyncEngine implements LauncherBackend {
   private readonly settings: SettingsStore;
   private readonly tokens: TokenStore;
   private readonly journals: JournalStore;
+  private readonly gameBuilds: GameBuildStore;
   private readonly api: ApiClient;
   private readonly game: GameProcessWatcher;
   private readonly randomId: () => string;
@@ -247,6 +249,7 @@ export class SyncEngine implements LauncherBackend {
     this.settings = new SettingsStore(deps.fs, deps.userDataDir);
     this.tokens = new TokenStore(deps.fs, deps.cipher, deps.userDataDir, deps.logger);
     this.journals = new JournalStore(deps.fs, deps.userDataDir);
+    this.gameBuilds = new GameBuildStore(deps.fs, deps.userDataDir);
     this.randomId = deps.randomId ?? (() => randomUUID());
     this.api = new ApiClient({
       baseUrl: 'https://invalid.local',
@@ -938,10 +941,15 @@ export class SyncEngine implements LauncherBackend {
           throw new FlowError('Der Spielstand vom Server ist nicht lesbar.');
         });
         // 4. Spielversion prüfen.
+        // Save-BuildVersion und Changelist der .version-Datei sind nicht direkt vergleichbar
+        // (siehe game-builds.ts); verglichen wird mit den Saves, die diese Installation schrieb.
         const installed = await this.installedBuild(platform);
-        if (installed === null) {
-          this.logger.warn('Installierte Spielversion unbekannt – Versionsprüfung übersprungen.');
-        } else if (header.buildVersion > installed) {
+        const known = installed === null ? null : await this.gameBuilds.knownSaveBuild(installed);
+        if (known === null) {
+          this.logger.info(
+            'Save-Build dieser Spielversion noch unbekannt – Versionsprüfung übersprungen.',
+          );
+        } else if (isTooNew(header.buildVersion, known)) {
           throw new FlowError(TEXT.tooNew);
         }
       }
@@ -1131,6 +1139,7 @@ export class SyncEngine implements LauncherBackend {
       this.journal.saveDir,
       () => this.watchRules(),
       (save) => {
+        void this.recordSaveBuild(save.header.buildVersion);
         this.enqueueUpload(save);
       },
       (save, verdict) => {
@@ -1142,6 +1151,18 @@ export class SyncEngine implements LauncherBackend {
     this.saveWatcher.start();
     // Liegt noch ein unbestätigter Upload im Journal (Recovery), zuerst den abschließen.
     if (this.journal.pendingUpload !== null) this.enqueueUpload(null);
+  }
+
+  /** Merkt sich, welche Save-Builds die installierte Version schreibt (für die Versionsprüfung). */
+  private async recordSaveBuild(saveBuild: number): Promise<void> {
+    const platform = this.journal?.platform;
+    if (platform == null) return;
+    try {
+      const installed = await this.installedBuild(platform);
+      if (installed !== null) await this.gameBuilds.record(installed, saveBuild);
+    } catch (error) {
+      this.logger.warn('Save-Build konnte nicht gespeichert werden', error);
+    }
   }
 
   private stopSaveWatcher(): void {
