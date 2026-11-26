@@ -20,7 +20,7 @@ import {
   resolveAppFile,
 } from './security';
 
-const APP_ID = 'de.v3in.schichtwechsel';
+const APP_ID = 'de.v3in.sync';
 const BACKGROUND = '#141416';
 
 /** Von electron-vite nur bei `npm run dev` gesetzt. */
@@ -103,14 +103,14 @@ app.on('web-contents-created', (_event, contents) => {
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 1200,
-    height: 760,
-    minWidth: 960,
-    minHeight: 600,
+    width: 1100,
+    height: 680,
+    minWidth: 820,
+    minHeight: 540,
     frame: false,
     show: false,
     backgroundColor: BACKGROUND,
-    title: 'Schichtwechsel',
+    title: 'V3in-sync',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -150,7 +150,7 @@ function startAutoUpdate(): void {
   autoUpdater
     .checkForUpdatesAndNotify({
       title: 'Update bereit',
-      body: 'Schichtwechsel {version} wird beim nächsten Beenden installiert.',
+      body: 'V3in-sync {version} wird beim nächsten Beenden installiert.',
     })
     .catch((error: unknown) => {
       console.error('[updater] Prüfung fehlgeschlagen', error);

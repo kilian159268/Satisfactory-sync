@@ -1,8 +1,8 @@
 # electron-builder: Windows-Installer (NSIS, x64) + Auto-Update über GitHub Releases (Plan 9, 11, 13/M5).
 # Aufruf immer mit `--config electron-builder.yml` (siehe `npm run dist`), weil package.json noch
 # einen eigenen `build`-Schlüssel hat, der sonst Vorrang hätte.
-appId: de.v3in.schichtwechsel
-productName: Schichtwechsel
+appId: de.v3in.sync
+productName: V3in-sync
 copyright: Copyright © 2026 V3in
 
 directories:
@@ -44,14 +44,14 @@ win:
 
 nsis:
   # Assistent statt Ein-Klick: Nutzer sieht, was passiert, Installation ohne Adminrechte
-  # pro Benutzer (%LOCALAPPDATA%\Programs\Schichtwechsel), Updates dann ohne UAC-Abfrage.
+  # pro Benutzer (%LOCALAPPDATA%\Programs\V3in-sync), Updates dann ohne UAC-Abfrage.
   oneClick: false
   perMachine: false
   allowElevation: false
   allowToChangeInstallationDirectory: false
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  shortcutName: Schichtwechsel
+  shortcutName: V3in-sync
   runAfterFinish: true
   # Journal, Cache und Quarantäne-Saves nie beim Deinstallieren löschen (CLAUDE.md: nichts löschen).
   deleteAppDataOnUninstall: false
@@ -62,8 +62,8 @@ nsis:
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico
-  artifactName: Schichtwechsel-Setup-${version}.${ext}
-  uninstallDisplayName: Schichtwechsel
+  artifactName: V3in-sync-Setup-${version}.${ext}
+  uninstallDisplayName: V3in-sync
 
 publish:
   provider: github

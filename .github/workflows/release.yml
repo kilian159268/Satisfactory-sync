@@ -79,8 +79,8 @@ jobs:
 
       - name: Fuses prüfen
         run: |
-          node scripts/verify-fuses.mjs release/win-unpacked/Schichtwechsel.exe
-          npx --no-install electron-fuses read --app release/win-unpacked/Schichtwechsel.exe
+          node scripts/verify-fuses.mjs release/win-unpacked/V3in-sync.exe
+          npx --no-install electron-fuses read --app release/win-unpacked/V3in-sync.exe
 
       - name: Artifact hochladen
         if: github.event_name == 'workflow_dispatch'

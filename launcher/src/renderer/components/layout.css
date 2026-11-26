@@ -125,6 +125,12 @@
   color: var(--color-text);
 }
 
+.titlebar__control--close:hover {
+  /* Windows-üblicher Schließen-Hover (Design V3in-sync, Ausnahme von der Akzentregel). */
+  background: var(--color-close-hover);
+  color: #ffffff;
+}
+
 .titlebar__control:focus-visible {
   outline-offset: -2px;
 }

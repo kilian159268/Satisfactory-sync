@@ -26,7 +26,7 @@ export const FUSES = {
 
 const EXE_SUFFIX = { win32: '.exe', darwin: '.app', mas: '.app', linux: '' };
 
-/** Pfad der gepackten Electron-Binary (Windows: `<appOutDir>/Schichtwechsel.exe`). */
+/** Pfad der gepackten Electron-Binary (Windows: `<appOutDir>/V3in-sync.exe`). */
 function executablePath(context) {
   const { appOutDir, electronPlatformName, packager } = context;
   const name =

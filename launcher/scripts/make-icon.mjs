@@ -14,7 +14,7 @@ import sharp from 'sharp';
 
 const BUILD_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'build');
 
-const BACKGROUND = '#141416';
+const BACKGROUND = '#1C1D20';
 const ORANGE = '#F59A4A';
 const ORANGE_LIGHT = '#FBC793';
 

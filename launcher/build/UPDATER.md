@@ -26,7 +26,7 @@ function startAutoUpdate(): void {
   autoUpdater
     .checkForUpdatesAndNotify({
       title: 'Update bereit',
-      body: 'Schichtwechsel {version} wird beim nächsten Beenden installiert.',
+      body: 'V3in-sync {version} wird beim nächsten Beenden installiert.',
     })
     .catch((error: unknown) => {
       console.error('[updater] Prüfung fehlgeschlagen', error);

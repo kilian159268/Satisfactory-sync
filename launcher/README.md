@@ -1,4 +1,6 @@
-# Schichtwechsel (Launcher)
+# V3in-sync (Launcher)
+
+Intern heißen API und Typen weiter `schichtwechsel` (`window.schichtwechsel`, `SchichtwechselApi`).
 
 Electron-Launcher für Satisfactory-sync. Electron + TypeScript (strict) + electron-vite + React 19, Zod, Vitest.
 Verbindlich: `../docs/PLAN.md`, `../docs/DESIGN.md`.
