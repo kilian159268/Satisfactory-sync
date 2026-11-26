@@ -11,8 +11,8 @@ function onlyMovedNeverDeleted(h: Harness): void {
   // Saves dürfen nur verschoben werden; unlink nur für eigene Temp-/Teildateien.
   for (const p of h.fs.unlinks) {
     expect(
-      p.includes(join('cache', 'downloads')) ||
-        p.includes(join('cache', 'snapshots')) ||
+      p.includes(join('sync-cache', 'downloads')) ||
+        p.includes(join('sync-cache', 'snapshots')) ||
         p.endsWith('.tmp'),
     ).toBe(true);
   }
@@ -230,6 +230,8 @@ describe('Plan Kapitel 8 – Fehlerfälle', () => {
 
   it('Save von neuerer Spielversion → klare Meldung, Lease zurück, Save-Ordner unberührt', async () => {
     const h = new Harness({ installedBuild: 400_000 });
+    // Diese Installation (Changelist 400000) hat bisher Saves mit Build 410000 geschrieben.
+    h.fs.put(join(h.userData, 'game-builds.json'), JSON.stringify({ '400000': 410_000 }));
     seedHead(h.server, 1_000, { buildVersion: 420_000 });
     h.writeSave(`${SESSION}_alt.sav`, { playSeconds: 900, body: 'eigen' }, h.clock.now() - 1);
     // Konfliktprüfung beim Öffnen räumt eigene ältere Stände weg; hier interessiert der Host-Start
@@ -247,6 +249,29 @@ describe('Plan Kapitel 8 – Fehlerfälle', () => {
     expect(h.state.error).toMatch(/neueren Spielversion/);
     expect(h.state.phase).toBe('bereit');
     expect(h.fs.list(h.saveDir).some((p) => p.endsWith('_SYNC.sav'))).toBe(false);
+  });
+
+  it('Save-Build höher als Changelist, Zuordnung unbekannt → Hosten geht (echter Fall 520140 vs. 463028)', async () => {
+    const h = new Harness({ installedBuild: 463_028 });
+    seedHead(h.server, 1_000, { buildVersion: 520_140 });
+    await h.start();
+    await h.playUntilHosting();
+    expect(h.state.phase).toBe('hosten');
+    expect(h.state.error).toBeNull();
+  });
+
+  it('beim Hosten merkt sich der Launcher, welche Save-Builds die installierte Version schreibt', async () => {
+    const h = new Harness({ installedBuild: 463_028 });
+    seedHead(h.server, 1_000, { buildVersion: 520_140 });
+    await h.start();
+    await h.playUntilHosting();
+    h.writeSave(`${SESSION}_autosave_0.sav`, { playSeconds: 1_100, buildVersion: 520_140 });
+    await h.advance(10_000);
+    const stored = JSON.parse(h.fs.text(join(h.userData, 'game-builds.json'))) as Record<
+      string,
+      number
+    >;
+    expect(stored).toEqual({ '463028': 520_140 });
   });
 
   it('Host lädt im Spiel einen anderen Spielstand → wird nicht hochgeladen', async () => {

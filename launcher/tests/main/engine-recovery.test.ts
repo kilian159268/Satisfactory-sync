@@ -107,7 +107,7 @@ describe('Absturz in jedem Zustand → Recovery', () => {
     // nichts mehr vom gemeinsamen Stand im Save-Ordner, nichts gelöscht
     expect(h.saveFiles()).toEqual([]);
     for (const p of h.fs.unlinks)
-      expect(p.endsWith('.sav') && !p.includes(join('cache', 'snapshots'))).toBe(false);
+      expect(p.endsWith('.sav') && !p.includes(join('sync-cache', 'snapshots'))).toBe(false);
     if (ORDER.indexOf(phase) >= ORDER.indexOf('hosten')) {
       expect(server.head()?.playSeconds).toBe(1_800);
       expect(
