@@ -138,7 +138,9 @@
 
 .settings__label {
   display: block;
+  margin: 0;
   padding: 0;
+  font-size: var(--font-size-14);
   font-weight: var(--font-weight-semibold);
 }
 
