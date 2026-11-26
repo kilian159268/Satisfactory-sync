@@ -1,0 +1,80 @@
+/* Designregeln: docs/DESIGN.md. Nur diese Variablen verwenden, keine Farben direkt im Code. */
+:root {
+  /* 60 % Grundfläche */
+  --color-bg: #141416;
+  /* 30 % Flächen und Rahmen */
+  --color-surface: #1c1d20;
+  --color-border: #2a2b30;
+  --color-border-strong: #3a3b41;
+  /* 10 % Akzent */
+  --color-accent: #f59a4a;
+  --color-accent-hover: #f8b176;
+  --color-on-accent: #1b1006;
+  --color-logo-light: #fbc793;
+  /* Text */
+  --color-text: #ececee;
+  --color-text-muted: #9b9da4;
+  --color-text-disabled: #6c6e75;
+  --color-error: #f2b8b5;
+
+  /* Schrift: nur Geist 400/500/600 */
+  --font-family: 'Geist', system-ui, sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-size-12: 12px;
+  --font-size-13: 13px;
+  --font-size-14: 14px;
+  --font-size-16: 16px;
+  --font-size-20: 20px;
+  --font-size-28: 28px;
+
+  /* 8-px-Raster (4 nur innerhalb kleiner Elemente) */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+
+  --radius-4: 4px;
+  --radius-8: 8px;
+  --border-width: 1px;
+
+  /* Übergänge nur als Farbwechsel */
+  --transition-color: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-regular);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
