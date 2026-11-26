@@ -20,6 +20,12 @@ files:
   - '!node_modules/react-dom/**'
   - '!node_modules/scheduler/**'
 asar: true
+# Der Karten-Worker (worker_threads) und sein Parser laufen außerhalb des asar,
+# damit der Worker seine Datei und die Bibliothek sicher laden kann (Plan 6.6).
+asarUnpack:
+  - out/main/map-worker.js
+  - node_modules/@etothepii/satisfactory-file-parser/**
+  - node_modules/pako/**
 # Keine nativen Produktions-Abhängigkeiten – @electron/rebuild ist nicht nötig.
 npmRebuild: false
 

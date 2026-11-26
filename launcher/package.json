@@ -5,10 +5,6 @@
   "private": true,
   "description": "Launcher für Satisfactory-sync: Spielstand teilen, Host wechseln.",
   "main": "./out/main/index.js",
-  "build": {
-    "appId": "de.v3in.schichtwechsel",
-    "productName": "Schichtwechsel"
-  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",

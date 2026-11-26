@@ -55,7 +55,14 @@ export function generateMapData(savePath: string, opts: GenerateMapOptions = {})
  * Chunk (`out/main/chunks/`), liegt der Worker eine Ebene höher.
  */
 export function defaultWorkerPath(baseDir: string = __dirname): string {
-  const candidates = [join(baseDir, WORKER_FILE_NAME), join(baseDir, '..', WORKER_FILE_NAME)];
+  // Im installierten Build liegt der Worker ausgepackt neben dem asar (electron-builder asarUnpack),
+  // damit worker_threads ihn und den Parser aus node_modules laden kann.
+  const unpacked = baseDir.replace(/app\.asar(?=[\\/]|$)/, 'app.asar.unpacked');
+  const dirs = unpacked === baseDir ? [baseDir] : [unpacked, baseDir];
+  const candidates = dirs.flatMap((d) => [
+    join(d, WORKER_FILE_NAME),
+    join(d, '..', WORKER_FILE_NAME),
+  ]);
   return candidates.find((p) => existsSync(p)) ?? candidates[0] ?? WORKER_FILE_NAME;
 }
 

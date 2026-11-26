@@ -112,3 +112,19 @@ describe('defaultWorkerPath', () => {
     expect(defaultWorkerPath(chunks)).toBe(join(outMain, WORKER_FILE_NAME));
   });
 });
+
+describe('defaultWorkerPath im installierten Build', () => {
+  it('bevorzugt app.asar.unpacked, wenn der Worker dort liegt', async () => {
+    const { mkdtemp, mkdir, writeFile } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
+    const { defaultWorkerPath } = await import('../../../src/main/map/index');
+    const root = await mkdtemp(path.join(tmpdir(), 'asar-'));
+    const unpackedMain = path.join(root, 'app.asar.unpacked', 'out', 'main');
+    await mkdir(unpackedMain, { recursive: true });
+    await writeFile(path.join(unpackedMain, 'map-worker.js'), '');
+    expect(defaultWorkerPath(path.join(root, 'app.asar', 'out', 'main', 'chunks'))).toBe(
+      path.join(unpackedMain, 'map-worker.js'),
+    );
+  });
+});

@@ -5,6 +5,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, clipboard, net, protocol, session, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import type { LauncherBackend } from './backend';
 import { createBackend } from './create-backend';
 import { registerIpcHandlers } from './ipc-handlers';
@@ -141,6 +142,21 @@ function focusMainWindow(): void {
   mainWindow.focus();
 }
 
+/** Auto-Update über GitHub Releases (Plan 9). Nur im installierten Build. */
+function startAutoUpdate(): void {
+  if (!app.isPackaged) return;
+  autoUpdater.logger = console;
+  autoUpdater.autoInstallOnAppQuit = true; // installiert erst beim Beenden, nach backend.dispose()
+  autoUpdater
+    .checkForUpdatesAndNotify({
+      title: 'Update bereit',
+      body: 'Schichtwechsel {version} wird beim nächsten Beenden installiert.',
+    })
+    .catch((error: unknown) => {
+      console.error('[updater] Prüfung fehlgeschlagen', error);
+    });
+}
+
 async function startApp(): Promise<void> {
   app.setAppUserModelId(APP_ID);
   hardenSession();
@@ -155,6 +171,7 @@ async function startApp(): Promise<void> {
   });
   disposeIpc = registerIpcHandlers({ backend, getWindow: () => mainWindow, devServerUrl });
   mainWindow = createWindow();
+  startAutoUpdate();
   await backend.start();
 }
 
