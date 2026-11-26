@@ -3,6 +3,9 @@
 Status: **Entwurf zur Abstimmung**. Es gibt noch keinen Code. Erst wenn dieser Plan
 abgenickt ist, wird gebaut.
 
+**Rahmen:** 4–5 Spieler, alle gleichberechtigt (kein Admin), **genau ein** gemeinsamer
+Spielstand, Windows-PCs mit Steam oder Epic, Server hinter nginx.
+
 ---
 
 ## 1. Ziel
@@ -59,6 +62,7 @@ nicht zuverlässig machbar. Die Sicherheit kommt aus dem Server, nicht aus dem S
 **Aufteilung der Technik (Vorschlag):**
 
 - **Launcher: Electron + TypeScript** komplett, also auch die Logik im Main-Prozess.
+  Oberfläche in HTML/CSS – Schwerpunkt ist, dass sie richtig gut aussieht (Kapitel 10).
   Node kann alles, was der Launcher braucht (Dateien, Prozesse, HTTP). Ein zusätzlicher
   C#-Prozess auf jedem Spieler-PC würde nur eine zweite Laufzeit, zweite Fehlerquelle und
   ein größeres Installationspaket bedeuten.
@@ -140,29 +144,34 @@ Host beendet → Upload → Lease frei → nächster drückt „Spielen“. Mehr
 
 ### 5.1 Datenmodell (SQLite)
 
-- `users` – id, name, rolle (`player`/`admin`), token-hash
-- `sessions` – id, anzeigename, satisfactory-sessionname, head_version_id
-- `versions` – id, session_id, nummer, sha256, größe, spielzeit, spielversion (BuildVersion),
+- `users` – id, name, token-hash, gesperrt
+- `world` – genau eine Zeile: satisfactory-sessionname, head_version_id
+- `versions` – id, nummer, sha256, größe, spielzeit, spielversion (BuildVersion),
   hochgeladen_von, zeitpunkt, typ (`normal`/`konflikt`/`import`)
-- `leases` – session_id (eindeutig), user_id, fencing_token, basis_version, läuft_ab_um
+- `leases` – höchstens eine Zeile: user_id, fencing_token, basis_version, läuft_ab_um
 - `fencing_counter` – streng steigend, nie zurückgesetzt
 - `audit_log` – wer hat wann was gemacht
 
-Eine `sessions`-Zeile pro gemeinsamem Spielstand – mehrere Welten sind damit später möglich.
+Es gibt bewusst nur einen Spielstand. Soll später eine zweite Welt (z. B. Testwelt) dazukommen,
+wird aus `world` eine Tabelle – die restliche Logik bleibt gleich.
 
 ### 5.2 API (Entwurf)
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| `GET` | `/api/sessions/{id}` | Status: Head-Version, aktueller Host, Lease-Ablauf |
-| `POST` | `/api/sessions/{id}/lease` | Host werden (atomar) |
-| `PUT` | `/api/sessions/{id}/lease/heartbeat` | Lease verlängern (mit Token) |
-| `DELETE` | `/api/sessions/{id}/lease` | Lease freigeben (mit Token) |
-| `GET` | `/api/sessions/{id}/versions/{v}/file` | Download (mit `ETag` = SHA-256, Range-Support) |
-| `POST` | `/api/sessions/{id}/versions` | Upload (siehe 5.3) |
-| `GET` | `/api/sessions/{id}/versions` | Verlauf (Backups) |
-| `POST` | `/api/admin/sessions/{id}/restore/{v}` | Admin: alte Version wiederherstellen |
-| `POST` | `/api/admin/sessions/{id}/lease/force-release` | Admin: hängende Lease lösen |
+| `GET` | `/api/world` | Status: Head-Version, aktueller Host, Lease-Ablauf |
+| `POST` | `/api/lease` | Host werden (atomar) |
+| `PUT` | `/api/lease/heartbeat` | Lease verlängern (mit Token) |
+| `DELETE` | `/api/lease` | Lease freigeben (mit Token) |
+| `GET` | `/api/versions/{v}/file` | Download (mit `ETag` = SHA-256, Range-Support) |
+| `POST` | `/api/versions` | Upload (siehe 5.3) |
+| `GET` | `/api/versions` | Verlauf (Backups) |
+| `POST` | `/api/versions/{v}/restore` | Alte Version wieder zum aktuellen Stand machen (nur wenn niemand hostet) |
+| `POST` | `/api/lease/force-release` | Hängende Lease lösen (nur wenn sie abgelaufen ist oder der Host selbst es auslöst) |
+
+Alle Spieler sind gleichberechtigt. „Gefährliche“ Aktionen (Wiederherstellen, Lease lösen)
+kann jeder auslösen, aber nur mit Bestätigungsdialog und mit Eintrag im Verlauf, den alle sehen.
+Wiederherstellen legt eine **neue** Version an – die alte Kette bleibt erhalten.
 
 Der Vertrag wird als **OpenAPI-Datei** festgehalten; der TypeScript-Client im Launcher
 wird daraus erzeugt. So können Server und Launcher nicht auseinanderlaufen.
@@ -183,7 +192,7 @@ Header: `Lease-Token`, `Base-Version`, `Content-SHA256`, `Idempotency-Key`.
 
 ### 5.4 Speicher & Backups
 
-- Dateien unter `/var/lib/satisfactory-sync/<session>/<version>.sav`, Name = Versionsnummer.
+- Dateien unter `/var/lib/satisfactory-sync/versions/<version>.sav`, Name = Versionsnummer.
 - Aufbewahrung: die letzten 20 Versionen + eine pro Tag für 30 Tage (einstellbar).
 - Speicherplatz-Check vor jedem Upload; bei < 2 GB frei wird abgelehnt statt halb geschrieben.
 - Saves sind ~10–100 MB und bereits zlib-komprimiert – keine weitere Kompression.
@@ -191,15 +200,16 @@ Header: `Lease-Token`, `Base-Version`, `Content-SHA256`, `Idempotency-Key`.
 ### 5.5 Betrieb
 
 - systemd-Service, läuft als eigener Benutzer ohne Root-Rechte.
-- Hinter dem vorhandenen Reverse-Proxy mit HTTPS. Nur HTTPS, kein offener Port nach außen.
+- Hinter dem vorhandenen **nginx** mit HTTPS (eigener `location`-Block, `client_max_body_size`
+  passend zur Save-Größe, Timeouts für große Uploads). Die genaue Konfiguration kommt in die Doku. Nur HTTPS, kein offener Port nach außen.
 - Rate-Limiting (ASP.NET Core hat das eingebaut), Größenlimit für Uploads.
 - Log mit strukturierten Einträgen; Health-Endpoint `/healthz`.
 
 ### 5.6 Anmeldung
 
-- Admin erzeugt **Einladungscodes**. Spieler gibt den Code einmal im Launcher ein und
-  bekommt ein persönliches Token. So sieht man, wer hostet, und kann einzelne Zugänge
-  sperren.
+- Einmalig beim Einrichten werden auf dem Server per Kommandozeile **Einladungscodes**
+  erzeugt (einer pro Spieler). Jeder gibt seinen Code einmal im Launcher ein und bekommt ein
+  persönliches Token. So sieht man, wer hostet, und ein verlorener Zugang lässt sich sperren.
 - Server speichert nur den Hash des Tokens. Im Launcher liegt es verschlüsselt über
   Electrons `safeStorage` (Windows: DPAPI).
 
@@ -268,7 +278,8 @@ Launcher weggeräumt hat, später **zurückspielen**. Deshalb mehrere Schutzschi
    Server nie erreichen (Fencing + Compare-and-swap). Schlimmstenfalls hat derjenige
    umsonst gespielt; der gemeinsame Stand bleibt heil.
 4. **Erkennung:** Findet der Launcher einen lokalen Stand mit *mehr* Spielzeit als der Server,
-   lädt er ihn als Konfliktkopie hoch und meldet es – der Admin entscheidet.
+   lädt er ihn als Konfliktkopie hoch und meldet es. Die Kopie steht im Verlauf; die Gruppe
+   entscheidet, ob sie wiederhergestellt wird.
 
 ---
 
@@ -287,7 +298,7 @@ Launcher weggeräumt hat, später **zurückspielen**. Deshalb mehrere Schutzschi
 | Host lädt im Spiel einen anderen Spielstand | Nur Saves mit passendem Sessionnamen werden hochgeladen. |
 | Server nicht erreichbar | Host werden nicht möglich (klare Meldung); Mitspieler-Start geht trotzdem. |
 | Spiel lief schon vor dem Launcher | Host-Knopf gesperrt. |
-| Festplatte des Servers voll | Upload wird abgelehnt, Save bleibt lokal, Admin sieht Warnung. |
+| Festplatte des Servers voll | Upload wird abgelehnt, Save bleibt lokal, alle Launcher zeigen eine Warnung. |
 
 ---
 
@@ -314,21 +325,36 @@ Warnung („Weitere Informationen → Trotzdem ausführen“). Für eine private
 
 ## 10. Oberfläche & Design
 
-Ziel: wirkt wie ein durchdachtes Produkt, nicht wie ein Template.
+Ziel: **richtig schön** – wirkt wie ein durchdachtes, hochwertiges Produkt, nicht wie ein
+Template und nicht wie zusammengeklickt. Gebaut mit HTML/CSS im Electron-Fenster.
+
+**Aufbau**
 
 - **Ein Bildschirm, ein Hauptknopf.** Eine große Statuskarte („Bereit zum Hosten“,
   „Max hostet seit 20:14“, „Lädt hoch … 64 %“) und ein Knopf, dessen Text sich mit dem
-  Zustand ändert. Alles andere (Verlauf, Einstellungen) in einer schlichten Seitenleiste.
-- **Richtung:** dunkles, industrielles Design mit warmem Orange als einziger Akzentfarbe –
-  passend zum Spiel, aber **eigenes Logo und eigener Name**, keine FICSIT-/Satisfactory-Grafiken.
-- Eigene Titelleiste (rahmenloses Fenster), klare Typografie (eine Schrift für Text,
-  eine schmale Monospace für Zahlen wie Versionen/Spielzeit), lokal eingebunden.
-- Bewegung nur, wo sie etwas erklärt: Fortschritt, Zustandswechsel. Keine Deko-Animationen.
-- Verständliche Fehlermeldungen in normalem Deutsch mit nächstem Schritt, keine Stacktraces.
-- Kleine Tray-Funktion: Launcher läuft während des Spiels im Hintergrund und zeigt dort den
-  Sync-Status.
+  Zustand ändert. Darunter kompakt: letzter Stand (Spielzeit, wann, von wem).
+- Verlauf und Einstellungen als ruhige Nebenansichten, nicht als vollgestopfte Seitenleiste.
+- Eigene Titelleiste (rahmenloses Fenster) mit Logo, Minimieren/Schließen.
+- Tray-Symbol: Während des Spiels läuft der Launcher im Hintergrund und zeigt dort den Sync-Status.
 
-Vor dem Bauen gibt es einen Design-Entwurf (Mockup) zum Abnicken.
+**Gestaltung**
+
+- Dunkle, tiefe Grundfläche mit feinem Kornrauschen und einem weichen Lichtverlauf hinter
+  der Statuskarte – Tiefe statt flacher Grauflächen.
+- Eine warme Akzentfarbe (Orange) für den Hauptknopf und aktive Zustände; Grün/Rot nur für
+  Erfolg/Fehler. Alles über CSS-Variablen (Design-Tokens), damit es einheitlich bleibt.
+- Typografie mit Charakter: eine ausdrucksstarke Schrift für Überschriften, eine gut lesbare
+  für Text, eine Monospace mit Tabellenziffern für Zahlen (Versionen, Spielzeit, Prozent).
+  Lokal eingebunden, keine Google-Fonts-Abfrage.
+- Durchdachte Mikro-Interaktionen: Knopf mit leichtem Glühen bei Hover, Fortschrittsring beim
+  Hoch-/Herunterladen, sanfte Übergänge zwischen Zuständen (CSS-Transitions, View
+  Transitions). Respektiert „Bewegung reduzieren“ in Windows.
+- Konsequente Abstände (8-px-Raster), saubere Kanten, kein Mischmasch aus Schatten und Rahmen.
+- **Logo:** kommt von dir. Name/Logo des Spiels und FICSIT-Grafiken werden nicht verwendet.
+- Fehlermeldungen in normalem Deutsch mit nächstem Schritt, keine Stacktraces.
+
+**Vorgehen:** Zuerst ein klickbarer Design-Entwurf (nur Oberfläche, Beispieldaten) zum
+Abnicken. Erst danach wird die Oberfläche an die echte Logik angeschlossen.
 
 ---
 
@@ -391,11 +417,14 @@ satisfactory-sync/
 - [ ] Liegen Blaupausen pro Session in eigenem Ordner?
 - [ ] Verhalten der Steam-/Epic-Cloud, wenn ein Save außerhalb des Spiels verschoben wird.
 
-**Von dir zu entscheiden:**
+**Entschieden:**
 
-1. Ist die Aufteilung **Electron/TypeScript für den Launcher, C# für den Server** okay?
-2. Welcher Reverse-Proxy läuft auf deinem Server (nginx, Caddy, Apache)? Und soll die API
-   unter deiner sslip.io-Domain laufen (z. B. `/sync`)?
-3. Wie viele Spieler, und wer ist Admin (nur du)?
-4. Name und Logo-Idee für den Launcher?
-5. Eine Welt oder gleich mehrere Spielstände unterstützen?
+- Launcher-Oberfläche in Electron (HTML/CSS), Logik im Hintergrund in TypeScript; Server in C#.
+- nginx als Reverse-Proxy.
+- 4–5 Spieler, alle gleichberechtigt, kein Admin.
+- Genau ein gemeinsamer Spielstand.
+
+**Noch offen:**
+
+1. Logo-Datei (kommt von dir) und Name des Launchers.
+2. Unter welcher Adresse soll die API laufen (z. B. `/sync` unter deiner sslip.io-Domain)?
