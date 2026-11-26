@@ -59,10 +59,11 @@ export function extractMapSources(save: SaveLike): MapSources {
         typePath: obj.typePath,
         x: t.x,
         y: t.y,
+        z: t.z,
         name: stationNames.get(obj.instanceName),
       });
     } else {
-      objects.push({ typePath: obj.typePath, x: t.x, y: t.y });
+      objects.push({ typePath: obj.typePath, x: t.x, y: t.y, z: t.z });
     }
   }
   return { objects, players };

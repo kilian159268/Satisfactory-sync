@@ -147,3 +147,25 @@ export function readableTypeName(typePath: string): string {
     .trim();
   return spaced.length > 0 ? spaced : name;
 }
+
+/**
+ * Bodennahe Objekte, deren Höhe als Geländepunkt dient (Typpfad beginnt mit einem dieser Präfixe).
+ * GEPRÜFT 2026-11-26 an einem echten Save (Build 520140): ~1.200 solcher Objekte über die ganze Welt
+ * (Rohstoffvorkommen, Fracking, Geysire, Absturzstellen, Gefahren, Tiere, Fundstücke).
+ * Gebäude, Fahrzeuge und Spieler zählen bewusst nicht (Fundamente, Fliegen, Jetpack).
+ */
+export const TERRAIN_SAMPLE_PREFIXES = [
+  '/Game/FactoryGame/Resource/',
+  '/Game/FactoryGame/World/Benefit/',
+  '/Game/FactoryGame/World/Hazard/',
+  '/Game/FactoryGame/Character/Creature/',
+  '/Game/FactoryGame/Prototype/WAT/',
+  '/Script/FactoryGame.FGItemPickup_Spawnable',
+] as const;
+
+export function isTerrainSample(typePath: string): boolean {
+  return TERRAIN_SAMPLE_PREFIXES.some((p) => typePath.startsWith(p));
+}
+
+/** ANNAHME – mit dem echten Spiel prüfen (Plan Kapitel 14): Unter dieser Höhe (m) wird Wasser gezeichnet. */
+export const TERRAIN_WATER_LEVEL_M = -20;

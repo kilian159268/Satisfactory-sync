@@ -9,6 +9,7 @@ Gelten für jede Komponente, Seite und Code-Änderung.
   Host-Kennzeichnung, Auswahl und Logo. Logo: Sechseck und linker Strich `#F59A4A`, rechter Strich `#FBC793`.
 - Text `#ECECEE`, Nebentext `#9B9DA4`, inaktiv `#6C6E75`, Fehler `#F2B8B5`.
 - Keine farbigen Statuspunkte, keine Schatten, keine Verläufe, keine Glows.
+- Ausnahme Karte: Die Geländeebene „Farbig“ darf Höhenfarben und Schattierung zeigen (Daten, keine Deko).
 
 ## Schrift & Abstände
 - Eine Schrift: **Geist** (400/500/600). Größen: 12, 13, 14, 16, 20, 28 px.

@@ -118,8 +118,40 @@
   position: absolute;
   top: var(--space-16);
   left: var(--space-16);
+  right: 72px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.map__layers {
   display: flex;
   gap: var(--space-8);
+}
+
+.map__divider {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-strong);
+}
+
+.map__filter:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.map__terrain {
+  image-rendering: auto;
+}
+
+/* Auf farbigem Gelände: Beschriftungen mit dunklem Rand, damit sie lesbar bleiben. */
+.map--layer-farbig .mk__label {
+  fill: var(--color-text);
+  paint-order: stroke;
+  stroke: var(--color-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .map__filter {

@@ -287,6 +287,15 @@ der Parser wird mit echten Saves getestet; Referenz: `@etothepii/satisfactory-fi
 - Bewusst im Launcher und nicht auf dem Server: Das Einlesen großer Saves braucht viel RAM,
   der Root-Server hat nur 8 GB und Minecraft läuft dort auch.
 - Die Karte wird selbst gezeichnet (SVG). Die Originalkarte des Spiels wird **nicht** verwendet.
+- **Gelände (ergänzt 2026-11-26, Wunsch des Betreibers):** Das Spiel speichert keine Landschaft, aber jedes
+  Objekt im Spielstand hat eine Höhe. Bodennahe Objekte (Rohstoffvorkommen, Absturzstellen, Fundstücke,
+  Tiere, Fracking-Satelliten, Geysire …) sind schon in einem frischen Save über die ganze Welt verteilt
+  (geprüft: ~1.200 Punkte auf ~7 × 6 km). Daraus wird ein grobes Höhenraster interpoliert (IDW, ca. 160 × 160
+  Zellen, Lücken bleiben leer) und als Teil der `map.json` hochgeladen. Gebäude, Fahrzeuge und Spieler zählen
+  nicht als Bodenpunkte (sie stehen auf Fundamenten bzw. fliegen). Das Relief ist eine Schätzung, keine
+  Kopie der Spielkarte.
+- **Ebenen** in der Oberfläche: *Farbig* (Wasser, Tiefland, Hügel, Berge, Schattierung), *Gedämpft* (dasselbe
+  Relief in den Grautönen des Launchers) und *Schematisch* (nur Gitter, wie bisher). Die Wahl bleibt gespeichert.
 - Schlägt das Einlesen fehl, hat das keinen Einfluss auf den Sync – die Karte zeigt dann den
   letzten gültigen Stand oder einen leeren Zustand mit Hinweis.
 - Die Karte kommt erst nach dem Kern (Meilenstein M4), damit der Sync nicht davon abhängt.
