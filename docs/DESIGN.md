@@ -2,23 +2,23 @@
 
 Gelten für jede Komponente, Seite und Code-Änderung.
 
-## Farben & Flächen (dunkel)
-- Dunkelgrau statt Schwarz: Grund `#131416`, höhere Ebenen heller (`#1A1B1E` Kopfzeile/Seitenleiste,
-  `#24262B` Hover/Dialoge). Je näher eine Ebene am Nutzer, desto heller.
-- Text `#E8E8EA` (kein reines Weiß), Nebentext `#9A9DA5`, deaktiviert `#6E717A`.
-- Genau eine Akzentfarbe, hell und entsättigt: `#93B4FF` (Hover `#B9CCFF`), dunkle Schrift darauf (`#0E1526`).
-- Keine farbigen Statuspunkte. Status steht als Text; Warnung `#F5C97A`, Fehler `#F2B8B5`.
-- Abgrenzung über 1-px-Rahmen (`#2A2C31`, `#3A3D44`), keine Schatten, kein Glassmorphismus,
-  keine Farbverläufe, keine Glows.
-- So wenig Text wie möglich: ein Titel, höchstens ein kurzer Satz pro Zustand.
+## Farben (60 / 30 / 10)
+- **60 % Grundfläche:** `#141416` (Karte, Hauptbereich). Dunkelgrau, kein Schwarz.
+- **30 % Flächen:** `#1C1D20` (Kopfzeile, Seitenleiste, Aktionsleiste, Fußzeile), Rahmen `#2A2B30` / `#3A3B41`.
+- **10 % Akzent:** Orange `#F59A4A` (Hover `#F8B176`, Schrift darauf `#1B1006`), nur für Hauptaktion,
+  Host-Kennzeichnung, Auswahl und Logo. Logo: Sechseck und linker Strich `#F59A4A`, rechter Strich `#FBC793`.
+- Text `#ECECEE`, Nebentext `#9B9DA4`, inaktiv `#6C6E75`, Fehler `#F2B8B5`.
+- Keine farbigen Statuspunkte, keine Schatten, keine Verläufe, keine Glows.
 
-## Typografie & Sprache
-- Überschriften: Bricolage Grotesque (600/700). Text: Geist (400/500/600), Tabellenziffern.
-- Keine Emojis. Keine Marketing-Floskeln. Kurze, konkrete Sätze, die sagen, was passiert.
-- Alles auf Deutsch, auch Fehlermeldungen, Platzhalter und Tooltips.
+## Schrift & Abstände
+- Eine Schrift: **Geist** (400/500/600). Größen: 12, 13, 14, 16, 20, 28 px.
+- Abstände nur aus dem 8-px-Raster: 8, 16, 24, 32 (4 nur innerhalb kleiner Elemente).
+- Keine Emojis, keine Floskeln, so wenig Text wie möglich, alles auf Deutsch.
 
 ## Layout
-- Asymmetrisch: Statusbereich links, „Aktueller Stand“ und „Gruppe“ in einer schmalen Spalte rechts.
+- Startseite: interaktive Karte oben, darunter die Aktionsleiste mit Status und Knöpfen
+  („Nur Spiel starten“ neben dem Hauptknopf). Rechts die Seitenleiste mit klar getrennten Abschnitten
+  („Aktueller Stand“, „Gruppe“). Fußzeile: wer hostet und Serververbindung.
 - Keine Karten in Karten, keine Icons in farbigen Kästchen, keine Pill-Buttons. Eckenradius 4–8 px.
 - Layout umbrechend (flex-wrap), nichts darf bei schmalen Fenstern überlappen.
 
