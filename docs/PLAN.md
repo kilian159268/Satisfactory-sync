@@ -184,6 +184,18 @@ Wiederherstellen legt eine **neue** Version an – die alte Kette bleibt erhalte
 Der Vertrag wird als **OpenAPI-Datei** festgehalten; der TypeScript-Client im Launcher
 wird daraus erzeugt. So können Server und Launcher nicht auseinanderlaufen.
 
+**Umgesetzt in M1 (Ergänzungen, 2026-11-26):**
+- `POST /api/auth/redeem` (Code + Name → Token) und `GET /api/me`, `GET /api/audit` (Verlauf für alle) sind dazugekommen.
+  Der vollständige Vertrag steht in [`contracts/openapi.yaml`](../contracts/openapi.yaml).
+- Versionen werden über ihre `id` angesprochen; `number` ist die Anzeige-Nummer, Konfliktkopien haben keine
+  Nummer und heißen `K-<id>`.
+- Heartbeat belebt eine abgelaufene Lease wieder, solange seitdem niemand eine neue bekommen hat (Fencing-Token
+  ist noch das aktuelle). Sicher, weil jede neue Lease den Zähler erhöht; Zurückholen und Lösen löschen die Lease.
+- Karten-Daten ablegen darf nur, wer die Version hochgeladen hat (sonst `403 not_uploader`).
+- Zurückholen übernimmt den Sessionnamen der zurückgeholten Version.
+- Rate-Limits sind einstellbar (`Sync:RedeemPerMinute`, `Sync:RequestBurst`, `Sync:RequestsPerMinute`); jede
+  Fehlerantwort hat das Format `{error, message, details}`.
+
 ### 5.3 Upload – so wird es wasserdicht
 
 Header: `Lease-Token`, `Base-Version`, `Content-SHA256`, `Idempotency-Key`.
@@ -418,7 +430,7 @@ satisfactory-sync/
 | # | Inhalt | Wo |
 |---|---|---|
 | **M1** | Server: Lease, Fencing, Versionen, Upload/Download, Anwesenheit, Tests. | Code: überall; Deployment: Root-Server |
-| **M2** | Deployment: systemd-Dienst, nginx-`location`, HTTPS, Einladungscodes für die Gruppe. | Root-Server |
+| **M2** | Deployment: systemd-Dienst, eigene nginx-Site `sync.v3in.de`, HTTPS, Einladungscodes für die Gruppe. | Root-Server |
 | **M3** | Launcher-Kern ohne UI: Zustandsmaschine, Journal, Pfade, Header-Parser, Prozess-Wächter, Recovery. | Code; Test auf Windows |
 | **M4** | Oberfläche nach Entwurf, Tray, Autostart, danach Karte. | Code; Test auf Windows |
 | **M5** | Härtung (alle Fälle aus Kapitel 8), Cloud-Erkennung, Installer + Auto-Update über GitHub Actions (`windows-latest`). | Code/CI |
