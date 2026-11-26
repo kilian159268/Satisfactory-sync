@@ -32,6 +32,11 @@ describe('formatPlaytime', () => {
 });
 
 describe('formatDayTime', () => {
+  it('Zukunft: morgen bzw. Datum (z. B. Ablauf eines Codes)', () => {
+    expect(formatDayTime(new Date(2026, 10, 27, 22, 14), NOW)).toBe('morgen, 22:14');
+    expect(formatDayTime(new Date(2026, 10, 29, 8, 5), NOW)).toBe('29.11., 08:05');
+  });
+
   it('heute', () => {
     expect(formatDayTime(new Date(2026, 10, 26, 19, 42), NOW)).toBe('heute, 19:42');
   });

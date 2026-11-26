@@ -49,13 +49,15 @@ function dayDiff(date: Date, now: Date): number {
 
 /**
  * Zeitpunkt relativ zum Tag: „heute, 19:42“, „gestern, 23:10“, „Mo, 21:05“ (letzte Woche),
- * „12.11., 21:05“ (dieses Jahr), sonst „12.11.2025“.
+ * „12.11., 21:05“ (dieses Jahr), sonst „12.11.2025“. Zukunft: „morgen, 22:14“ bzw. Datum.
  */
 export function formatDayTime(value: string | Date, now: Date): string {
   const date = toDate(value);
   const clock = formatClock(date);
   const diff = dayDiff(date, now);
-  if (diff <= 0) return `heute, ${clock}`;
+  if (diff === 0) return `heute, ${clock}`;
+  if (diff === -1) return `morgen, ${clock}`;
+  if (diff < -1) return `${pad2(date.getDate())}.${pad2(date.getMonth() + 1)}., ${clock}`;
   if (diff === 1) return `gestern, ${clock}`;
   if (diff < 7) return `${WEEKDAYS[date.getDay()] ?? ''}, ${clock}`;
   const dayMonth = `${pad2(date.getDate())}.${pad2(date.getMonth() + 1)}.`;
