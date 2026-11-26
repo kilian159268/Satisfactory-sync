@@ -125,6 +125,14 @@ public static class ClientExtensions
     public static async Task<JsonElement> JsonAsync(this HttpResponseMessage res) =>
         await res.Content.ReadFromJsonAsync<JsonElement>(SyncServer.Json);
 
+    public static async Task<JsonElement> WorldAsync(this HttpClient c) => await (await c.GetAsync("/api/world")).JsonAsync();
+
+    public static async Task<int> VersionCountAsync(this HttpClient c) => (await (await c.GetAsync("/api/versions")).JsonAsync()).GetArrayLength();
+
+    /// <summary>Id des Heads aus /api/world, 0 = keiner.</summary>
+    public static long HeadId(JsonElement world) =>
+        world.GetProperty("head").ValueKind == JsonValueKind.Null ? 0 : world.GetProperty("head").GetProperty("id").GetInt64();
+
     public static async Task<(long Token, long Head)> LeaseAsync(this HttpClient c)
     {
         var res = await c.PostAsync("/api/lease", null);
