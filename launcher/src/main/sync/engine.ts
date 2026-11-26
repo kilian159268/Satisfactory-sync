@@ -320,17 +320,23 @@ export class SyncEngine implements LauncherBackend {
     if (this.game.isRunning()) return { ok: false, error: TEXT.gameRunning };
     const platform = this.settings.get().platform;
     if (platform === null) return { ok: false, error: TEXT.noPlatform };
-    const saveDir = await this.resolveSaveDir(platform);
-    if (saveDir === null) return { ok: false, error: TEXT.noSaveDir };
+    // Sofort sperren (vor dem ersten await) – Doppelklick startet nur einen Ablauf.
     this.busy = true;
     let result: ActionResult = { ok: true };
-    await this.serial(async () => {
-      try {
-        result = await this.hostFlow(platform, saveDir);
-      } finally {
-        this.busy = false;
-      }
-    });
+    try {
+      const saveDir = await this.resolveSaveDir(platform);
+      if (saveDir === null) return { ok: false, error: TEXT.noSaveDir };
+      await this.serial(async () => {
+        try {
+          result = await this.hostFlow(platform, saveDir);
+        } catch (error) {
+          result = { ok: false, error: this.describe(error) };
+          throw error;
+        }
+      });
+    } finally {
+      this.busy = false;
+    }
     return result;
   }
 
