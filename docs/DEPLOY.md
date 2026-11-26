@@ -145,6 +145,18 @@ sudo -u satisfactory-sync env Sync__DataDir=/var/lib/satisfactory-sync \
 #   ... block NAME / unblock NAME       # Zugang sperren / entsperren
 ```
 
+### Zweites Spielkonto oder zweiter PC
+
+Ein Spieler kann mehrere Zugänge haben; in der Gruppe bleibt er eine Person (ein Name, ein Verlauf).
+
+- Selbst im Launcher: **Einstellungen → Zweiten Zugang verknüpfen** → Code auf dem anderen Konto/PC beim
+  Anmelden eingeben (24 Std. gültig, einmal einlösbar; der Name wird dabei ignoriert).
+- Als Betreiber: `deploy/cli.sh invite --for NAME` erzeugt denselben Code.
+- Hat jemand schon zwei Einladungscodes eingelöst (z. B. „Veloc“ und „VelocAlt“):
+  `deploy/cli.sh link Veloc VelocAlt` – „VelocAlt“ wird ein weiterer Zugang von „Veloc“; Versionen, Verlauf und
+  eine laufende Host-Rolle gehen mit.
+- `deploy/cli.sh users` zeigt die Spieler mit Anzahl der Zugänge.
+
 ## 6. Update
 
 Neuen Stand bauen und ausrollen – derselbe Befehl wie bei der Erstinstallation:
