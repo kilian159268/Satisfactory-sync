@@ -3,7 +3,8 @@
  */
 import type { Platform } from '../../shared/ipc';
 import {
-  EPIC_LAUNCH_URI,
+  EPIC_DEFAULT_APP_NAME,
+  epicLaunchUri,
   GAME_PROCESS_NAMES,
   PROCESS_GONE_GRACE_MS,
   PROCESS_POLL_MS,
@@ -11,8 +12,11 @@ import {
 } from '../game-assumptions';
 import { every, type Cancel, type Clock, type CommandRunner } from '../ports';
 
-export function launchUriFor(platform: Platform): string {
-  return platform === 'steam' ? STEAM_LAUNCH_URI : EPIC_LAUNCH_URI;
+/** Start-URI; bei Epic für die installierte Version (AppName aus dem Manifest). */
+export function launchUriFor(platform: Platform, epicAppName?: string | null): string {
+  return platform === 'steam'
+    ? STEAM_LAUNCH_URI
+    : epicLaunchUri(epicAppName ?? EPIC_DEFAULT_APP_NAME);
 }
 
 /** Erste Spalte jeder CSV-Zeile von `tasklist /FO CSV /NH` (Abbildname). */

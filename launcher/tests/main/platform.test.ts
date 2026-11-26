@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   chooseSaveDir,
   detectInstalledGames,
+  findEpicGame,
   findEpicGameDir,
   findSaveDirs,
   findSteamGameDir,
@@ -111,9 +112,82 @@ describe('Epic', () => {
       localAppData: null,
       programData: resolve('/pd'),
     });
-    expect(games).toEqual({ steam: null, epic: { gameDir: resolve('/epic/Satisfactory') } });
+    expect(games).toEqual({
+      steam: null,
+      epic: { gameDir: resolve('/epic/Satisfactory'), appName: 'CrabEA' },
+    });
     expect(suggestPlatform(games)).toBe('epic');
     expect(suggestPlatform({ steam: null, epic: null })).toBeNull();
+  });
+
+  it('nur Experimental installiert → startet genau diese Version', async () => {
+    const fs = new MemoryFs();
+    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
+    fs.put(
+      join(man, 'x.item'),
+      JSON.stringify({
+        AppName: 'CrabTest',
+        DisplayName: 'Satisfactory Experimental',
+        InstallLocation: resolve('/epic/SatisfactoryExperimental'),
+      }),
+    );
+    await fs.mkdir(resolve('/epic/SatisfactoryExperimental'));
+    const game = await findEpicGame(fs, resolve('/pd'));
+    expect(game).toEqual({
+      gameDir: resolve('/epic/SatisfactoryExperimental'),
+      appName: 'CrabTest',
+    });
+    expect(launchUriFor('epic', game?.appName)).toBe(
+      'com.epicgames.launcher://apps/CrabTest?action=launch&silent=true',
+    );
+  });
+
+  it('Experimental am Anzeigenamen erkannt, auch wenn der AppName anders heißt', async () => {
+    const fs = new MemoryFs();
+    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
+    fs.put(
+      join(man, 'x.item'),
+      JSON.stringify({
+        AppName: 'abc123def',
+        DisplayName: 'Satisfactory Experimental',
+        InstallLocation: resolve('/epic/SE'),
+      }),
+    );
+    await fs.mkdir(resolve('/epic/SE'));
+    expect((await findEpicGame(fs, resolve('/pd')))?.appName).toBe('abc123def');
+  });
+
+  it('beide installiert → normale Version (Crab) gewinnt', async () => {
+    const fs = new MemoryFs();
+    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
+    fs.put(
+      join(man, 'a.item'),
+      JSON.stringify({ AppName: 'CrabTest', InstallLocation: resolve('/epic/Exp') }),
+    );
+    fs.put(
+      join(man, 'b.item'),
+      JSON.stringify({ AppName: 'Crab', InstallLocation: resolve('/epic/Std') }),
+    );
+    await fs.mkdir(resolve('/epic/Exp'));
+    await fs.mkdir(resolve('/epic/Std'));
+    expect(await findEpicGame(fs, resolve('/pd'))).toEqual({
+      gameDir: resolve('/epic/Std'),
+      appName: 'Crab',
+    });
+  });
+
+  it('verdächtiger AppName wird nicht in den Startbefehl übernommen', async () => {
+    const fs = new MemoryFs();
+    const man = resolve('/pd/Epic/EpicGamesLauncher/Data/Manifests');
+    fs.put(
+      join(man, 'a.item'),
+      JSON.stringify({ AppName: 'Crab?x=1&y', InstallLocation: resolve('/epic/S') }),
+    );
+    await fs.mkdir(resolve('/epic/S'));
+    expect((await findEpicGame(fs, resolve('/pd')))?.appName).toBe('Crab');
+    expect(launchUriFor('epic')).toBe(
+      'com.epicgames.launcher://apps/Crab?action=launch&silent=true',
+    );
   });
 });
 
