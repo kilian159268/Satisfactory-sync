@@ -2,7 +2,7 @@
  * Steam/Epic erkennen, Spielordner, installierte Spielversion, Save-Ordner (Plan 6.2).
  * Alle Pfade und Namen kommen aus game-assumptions.ts.
  */
-import { join } from 'node:path';
+import { join, normalize } from 'node:path';
 import type { Platform } from '../../shared/ipc';
 import {
   EPIC_APP_NAME_PREFIX,
@@ -40,7 +40,9 @@ export async function findSteamRoot(run: CommandRunner): Promise<string | null> 
     try {
       const out = await run('reg', ['query', key, '/v', value]);
       const found = parseRegQueryValue(out, value);
-      if (found !== null) return found.replace(/\//g, '\\');
+      // Registry liefert z. B. "c:/program files (x86)/steam"; normalize setzt die Trenner des
+      // Betriebssystems (unter Windows Backslashes) und lässt die Tests unter Linux heil.
+      if (found !== null) return normalize(found);
     } catch {
       // Schlüssel fehlt → nächster
     }
