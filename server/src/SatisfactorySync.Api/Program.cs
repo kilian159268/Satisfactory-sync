@@ -87,7 +87,6 @@ app.UseStatusCodePages(ctx =>
         StatusCodes.Status405MethodNotAllowed => ("method_not_allowed", "Methode nicht erlaubt."),
         StatusCodes.Status413PayloadTooLarge => ("too_large", "Datei ist zu groß."),
         StatusCodes.Status415UnsupportedMediaType => ("unsupported_media_type", "Falscher Inhaltstyp."),
-        StatusCodes.Status416RangeNotSatisfiable => ("range_not_satisfiable", "Bereich liegt außerhalb der Datei."),
         _ => ("error", "Fehler auf dem Server."),
     };
     return ctx.HttpContext.Response.WriteAsJsonAsync(new ErrorBody(code, message, null), ctx.HttpContext.RequestAborted);

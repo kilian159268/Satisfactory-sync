@@ -1,0 +1,683 @@
+openapi: 3.1.0
+info:
+  title: Schichtwechsel Sync-Server
+  version: 1.0.0
+  summary: Vertrag zwischen Sync-Server (server/) und Launcher (launcher/).
+  description: |
+    Ein gemeinsamer Satisfactory-Spielstand für eine kleine Gruppe. Wer hostet, hält die Lease
+    (Fencing-Token, streng steigend); Uploads werden per Compare-and-swap auf den Head geprüft
+    (Plan 5.3). Alles, was nicht neuer Head werden darf, wird als Konfliktkopie gespeichert.
+
+    - JSON ist camelCase. Zeitpunkte sind ISO-8601 mit Offset (UTC).
+    - Fehler haben immer das Format `Error` (`error` = stabiler Code, `message` = deutscher Text).
+    - Rate-Limit: alle Anfragen pro Spieler (bzw. IP) als Token-Bucket, `POST /api/auth/redeem`
+      zusätzlich pro IP und Minute. Überschreitung → `429` mit `error = rate_limited`.
+    - Der Server kann unter einem Pfad-Präfix laufen (`Sync:PathBase`); alle Pfade sind dann
+      relativ dazu.
+servers:
+  - url: https://sync.v3in.de
+security:
+  - bearer: []
+
+paths:
+  /healthz:
+    get:
+      operationId: health
+      summary: Lebenszeichen des Servers (prüft auch die Datenbank).
+      security: []
+      responses:
+        '200':
+          description: Server und Datenbank erreichbar.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, time]
+                properties:
+                  status: { type: string, const: ok }
+                  time: { type: string, format: date-time }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/auth/redeem:
+    post:
+      operationId: redeemInvite
+      summary: Einladungscode einlösen und persönliches Token erhalten (nur dieses eine Mal sichtbar).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code:
+                  type: string
+                  description: Format XXXX-XXXX-XXXX; Groß-/Kleinschreibung, Leerzeichen und Bindestriche egal.
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 24
+                  description: Wird getrimmt; keine Steuerzeichen; eindeutig ohne Beachtung der Groß-/Kleinschreibung.
+      responses:
+        '200':
+          description: Eingelöst.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, name]
+                properties:
+                  token: { type: string }
+                  name: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: '`invite_invalid` – Code unbekannt oder schon benutzt.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: '`name_taken` – Name vergeben (der Code bleibt gültig).'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/me:
+    get:
+      operationId: me
+      summary: Wer bin ich?
+      responses:
+        '200':
+          description: Angemeldeter Spieler.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/world:
+    get:
+      operationId: getWorld
+      summary: Status der Welt – Head, aktueller Host, Serverzeit.
+      responses:
+        '200':
+          description: Status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorldStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/lease:
+    post:
+      operationId: acquireLease
+      summary: Host werden (atomar; genau einer gewinnt).
+      description: |
+        Gelingt, wenn keine Lease existiert oder die vorhandene abgelaufen ist. Jede neue Lease
+        erhöht den Fencing-Zähler.
+      responses:
+        '200':
+          description: Lease erhalten.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaseGrant' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: '`lease_held` – jemand hostet; `details` ist der `Host`.'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: object
+                    properties:
+                      details: { $ref: '#/components/schemas/Host' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: releaseLease
+      summary: Lease freigeben.
+      parameters:
+        - $ref: '#/components/parameters/LeaseTokenRequired'
+      responses:
+        '204': { description: Freigegeben. }
+        '400': { $ref: '#/components/responses/InvalidLeaseToken' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/LeaseLost' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/lease/heartbeat:
+    put:
+      operationId: heartbeat
+      summary: Lease verlängern.
+      description: |
+        Ist die Lease abgelaufen, aber hat seitdem niemand eine neue bekommen (Token ist noch das
+        aktuelle), wird sie wiederbelebt.
+      parameters:
+        - $ref: '#/components/parameters/LeaseTokenRequired'
+      responses:
+        '200':
+          description: Verlängert.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [expiresAt]
+                properties:
+                  expiresAt: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/InvalidLeaseToken' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/LeaseLost' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/lease/force-release:
+    post:
+      operationId: forceReleaseLease
+      summary: Hängende Lease lösen – nur wenn sie abgelaufen ist oder der Host selbst es auslöst.
+      responses:
+        '200':
+          description: '`released = false`, wenn es keine Lease gab.'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [released]
+                properties:
+                  released: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: '`lease_active` – jemand anderes hostet noch.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/versions:
+    get:
+      operationId: listVersions
+      summary: Verlauf – nicht aufgeräumte Versionen inkl. Konfliktkopien, neueste zuerst (max. 100).
+      responses:
+        '200':
+          description: Versionen.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Version' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    post:
+      operationId: uploadVersion
+      summary: Spielstand hochladen (Plan 5.3).
+      description: |
+        Prüfreihenfolge: Header vollständig → bekannter `Idempotency-Key` (gleiche Antwort wie beim
+        ersten Mal, auch 409) → Größe → Speicherplatz → Hash → Save-Header → Sessionname → in einer
+        Transaktion Lease/Token/Basis/Spielzeit. Fehler (4xx/5xx im `Error`-Format) werden nicht unter dem
+        Key gespeichert; ein Retry mit demselben Key ist dann wieder möglich.
+      parameters:
+        - $ref: '#/components/parameters/LeaseTokenOptional'
+        - name: Base-Version
+          in: header
+          required: true
+          description: Id des Heads, auf dem der Stand aufbaut; `0` = es gab keinen.
+          schema: { type: integer, format: int64, minimum: 0 }
+        - name: Content-SHA256
+          in: header
+          required: true
+          description: SHA-256 des Bodys als Hex (64 Zeichen).
+          schema: { type: string, pattern: '^[0-9a-fA-F]{64}$' }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Pro Spieler eindeutig; gleicher Key → gleiche Antwort, keine doppelte Version.
+          schema: { type: string, minLength: 1, maxLength: 100 }
+      requestBody:
+        required: true
+        description: Die rohe .sav-Datei. Standard-Größenlimit 512 MiB (`Sync:MaxUploadBytes`).
+        content:
+          application/octet-stream:
+            schema: { type: string, contentMediaType: application/octet-stream }
+      responses:
+        '201':
+          description: Neuer Head (`accepted = true`).
+          headers:
+            Location: { schema: { type: string }, description: '/api/versions/{id}' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadResult' }
+        '400':
+          description: |
+            `hash_mismatch` (nichts gespeichert), `invalid_sha256`, `invalid_base_version`,
+            `invalid_idempotency_key`, `invalid_lease_token`, `bad_request`.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: Als Konfliktkopie gespeichert (`accepted = false`, `conflictReason` gesetzt). Head unverändert.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadResult' }
+        '413':
+          description: '`too_large`.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: |
+            `invalid_save` – Header nicht lesbar; `wrong_session` – anderer Sessionname
+            (`details = {expected, actual}`). Nichts gespeichert.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '507':
+          description: '`disk_full` – weniger als `Sync:MinFreeBytes` (Standard 2 GiB) frei. Nichts gespeichert.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/versions/{id}/file:
+    get:
+      operationId: downloadVersion
+      summary: Datei einer Version herunterladen (Range-Support).
+      parameters:
+        - $ref: '#/components/parameters/VersionId'
+        - name: Range
+          in: header
+          required: false
+          schema: { type: string, examples: ['bytes=1000-'] }
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string }
+        - name: If-Range
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Ganze Datei.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Content-SHA256: { $ref: '#/components/headers/ContentSha256' }
+            Accept-Ranges: { schema: { type: string, const: bytes } }
+            Last-Modified: { schema: { type: string } }
+            Content-Disposition: { schema: { type: string }, description: 'attachment; filename=version-<label>.sav' }
+          content:
+            application/octet-stream:
+              schema: { type: string, contentMediaType: application/octet-stream }
+        '206':
+          description: Teil der Datei.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Content-SHA256: { $ref: '#/components/headers/ContentSha256' }
+            Content-Range: { schema: { type: string } }
+          content:
+            application/octet-stream:
+              schema: { type: string, contentMediaType: application/octet-stream }
+        '304': { description: ETag passt (If-None-Match). }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/VersionNotFound' }
+        '416':
+          description: Bereich liegt außerhalb der Datei (ohne Body).
+          headers:
+            Content-Range: { schema: { type: string }, description: 'bytes */<Dateigröße>' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/versions/{id}/restore:
+    post:
+      operationId: restoreVersion
+      summary: Alte Version (auch Konfliktkopie) als neue Version zum Head machen.
+      description: |
+        Nur ohne aktiven Host. Legt eine neue Version (`type = import`, `restoredFrom = id`) mit
+        neuer Nummer an; die alte Kette bleibt. Eine abgelaufene Lease wird dabei entfernt.
+      parameters:
+        - $ref: '#/components/parameters/VersionId'
+      responses:
+        '201':
+          description: Neuer Head.
+          headers:
+            Location: { schema: { type: string }, description: '/api/versions/{id}' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Version' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/VersionNotFound' }
+        '409':
+          description: '`host_active` – jemand hostet gerade.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '507':
+          description: '`disk_full`.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/versions/{id}/map:
+    put:
+      operationId: putMap
+      summary: Karten-Daten zu einer Version ablegen (nur wer die Version hochgeladen hat).
+      parameters:
+        - $ref: '#/components/parameters/VersionId'
+      requestBody:
+        required: true
+        description: Beliebiges gültiges JSON (der Launcher schickt `MapData`), Standard max. 4 MiB.
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MapData' }
+      responses:
+        '204': { description: Gespeichert (ersetzt eine vorhandene Karte). }
+        '400':
+          description: '`invalid_json`.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: '`not_uploader` – Version stammt von jemand anderem.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { $ref: '#/components/responses/VersionNotFound' }
+        '413':
+          description: '`too_large`.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    get:
+      operationId: getMap
+      summary: Karten-Daten einer Version (genau so, wie sie abgelegt wurden).
+      parameters:
+        - $ref: '#/components/parameters/VersionId'
+      responses:
+        '200':
+          description: Karte.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MapData' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: '`map_not_found`.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/presence:
+    put:
+      operationId: putPresence
+      summary: Lebenszeichen jedes Launchers (alle 30 s).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/PresenceStatus' }
+      responses:
+        '204': { description: Gespeichert. }
+        '400':
+          description: '`invalid_status` oder `bad_request`.'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/crew:
+    get:
+      operationId: getCrew
+      summary: Alle (nicht gesperrten) Spieler, alphabetisch, mit Status und Host-Markierung.
+      description: Offline nach 90 s ohne Lebenszeichen (`Sync:OfflineAfter`); offline → `status = null`.
+      responses:
+        '200':
+          description: Gruppe.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CrewMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/audit:
+    get:
+      operationId: getAudit
+      summary: Verlauf der Aktionen (neueste zuerst, max. 100).
+      responses:
+        '200':
+          description: Einträge.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AuditEntry' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: Persönliches Token aus `POST /api/auth/redeem`. Der Server speichert nur den SHA-256.
+
+  parameters:
+    VersionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    LeaseTokenRequired:
+      name: Lease-Token
+      in: header
+      required: true
+      description: Fencing-Token aus `POST /api/lease`.
+      schema: { type: integer, format: int64, minimum: 0 }
+    LeaseTokenOptional:
+      name: Lease-Token
+      in: header
+      required: false
+      description: Fencing-Token. Fehlt er, wird der Upload als Konfliktkopie (`no_lease`) gespeichert.
+      schema: { type: integer, format: int64, minimum: 0 }
+
+  headers:
+    ETag:
+      description: '"<sha256>" (in Anführungszeichen).'
+      schema: { type: string }
+    ContentSha256:
+      description: SHA-256 der Datei als Hex, klein geschrieben.
+      schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+
+  responses:
+    Unauthorized:
+      description: '`unauthorized` – kein, ungültiges oder gesperrtes Token.'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    RateLimited:
+      description: '`rate_limited`.'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    BadRequest:
+      description: '`invalid_name` oder `bad_request` (unlesbares JSON).'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    InvalidLeaseToken:
+      description: '`invalid_lease_token` – Header `Lease-Token` fehlt oder ist keine Zahl.'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    LeaseLost:
+      description: '`lease_lost` – Token ist nicht mehr das aktuelle oder gehört jemand anderem.'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    VersionNotFound:
+      description: '`version_not_found` (auch für aufgeräumte Versionen).'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message, details]
+      properties:
+        error:
+          type: string
+          description: Stabiler, maschinenlesbarer Code.
+          examples: [lease_held, hash_mismatch, disk_full]
+        message:
+          type: string
+          description: Kurzer deutscher Text für die Anzeige.
+        details:
+          description: Zusatzinfos je nach Code (z. B. `Host` bei `lease_held`), sonst null.
+
+    VersionType:
+      type: string
+      enum: [normal, konflikt, import]
+
+    ConflictReason:
+      type: string
+      enum: [no_lease, stale_token, lease_expired, base_mismatch, playtime_regressed]
+
+    PresenceStatus:
+      type: string
+      enum: [launcher, im_spiel]
+
+    Version:
+      type: object
+      required: [id, number, label, sha256, size, playSeconds, buildVersion, sessionName, uploadedBy,
+        uploadedAt, type, baseVersionId, conflictReason, restoredFrom, pruned, hasMap]
+      properties:
+        id: { type: integer, format: int64 }
+        number:
+          type: [integer, 'null']
+          format: int64
+          description: Laufende Nummer der Hauptlinie; null bei Konfliktkopien.
+        label:
+          type: string
+          description: Anzeige, z. B. "128" oder "K-3" (Konfliktkopie mit id 3).
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64 }
+        playSeconds: { type: integer, format: int32 }
+        buildVersion: { type: integer, format: int32 }
+        sessionName: { type: string }
+        uploadedBy: { type: string }
+        uploadedAt: { type: string, format: date-time }
+        type: { $ref: '#/components/schemas/VersionType' }
+        baseVersionId:
+          type: [integer, 'null']
+          format: int64
+          description: Basis laut Upload (0 = keine); beim Zurückholen der damalige Head.
+        conflictReason:
+          oneOf:
+            - $ref: '#/components/schemas/ConflictReason'
+            - type: 'null'
+        restoredFrom:
+          type: [integer, 'null']
+          format: int64
+        pruned: { type: boolean }
+        hasMap: { type: boolean }
+
+    UploadResult:
+      type: object
+      required: [accepted, version, conflictReason, message]
+      properties:
+        accepted: { type: boolean }
+        version: { $ref: '#/components/schemas/Version' }
+        conflictReason:
+          oneOf:
+            - $ref: '#/components/schemas/ConflictReason'
+            - type: 'null'
+        message:
+          type: [string, 'null']
+          description: Deutscher Hinweis bei Konfliktkopie, sonst null.
+
+    Host:
+      type: object
+      required: [name, since, expiresAt, expired]
+      properties:
+        name: { type: string }
+        since: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        expired: { type: boolean }
+
+    WorldStatus:
+      type: object
+      required: [sessionName, head, host, serverTime]
+      properties:
+        sessionName:
+          type: [string, 'null']
+          description: Wird mit der ersten angenommenen (oder zurückgeholten) Version festgelegt.
+        head:
+          oneOf:
+            - $ref: '#/components/schemas/Version'
+            - type: 'null'
+        host:
+          description: Aktuelle Lease (auch abgelaufen, solange niemand sie übernommen hat) oder null.
+          oneOf:
+            - $ref: '#/components/schemas/Host'
+            - type: 'null'
+        serverTime: { type: string, format: date-time }
+
+    LeaseGrant:
+      type: object
+      required: [leaseId, fencingToken, headVersionId, expiresAt, head]
+      properties:
+        leaseId: { type: string }
+        fencingToken: { type: integer, format: int64 }
+        headVersionId:
+          type: integer
+          format: int64
+          description: Id des Heads; 0 = es gibt noch keinen.
+        expiresAt: { type: string, format: date-time }
+        head:
+          oneOf:
+            - $ref: '#/components/schemas/Version'
+            - type: 'null'
+
+    CrewMember:
+      type: object
+      required: [name, online, status, lastSeen, isHost]
+      properties:
+        name: { type: string }
+        online: { type: boolean }
+        status:
+          oneOf:
+            - $ref: '#/components/schemas/PresenceStatus'
+            - type: 'null'
+        lastSeen: { type: [string, 'null'], format: date-time }
+        isHost:
+          type: boolean
+          description: Hält eine nicht abgelaufene Lease.
+
+    AuditEntry:
+      type: object
+      required: [at, user, action, details]
+      properties:
+        at: { type: string, format: date-time }
+        user: { type: [string, 'null'] }
+        action:
+          type: string
+          examples: [joined, invites_created, blocked, unblocked, lease_acquired, lease_released,
+            lease_force_released, version_uploaded, conflict_copy, version_restored]
+        details: { type: [string, 'null'] }
+
+    MapData:
+      description: |
+        Vom Launcher erzeugte Kartendaten. Der Server prüft nur, dass es gültiges JSON ist, und gibt
+        es unverändert zurück; dieses Schema beschreibt, was der Launcher schickt.
+      type: object
+      properties:
+        version: { type: integer }
+        clusters:
+          type: array
+          items:
+            type: object
+            required: [id, x, y, count, topTypes]
+            properties:
+              id: { type: integer }
+              x: { type: number }
+              y: { type: number }
+              count: { type: integer }
+              topTypes: { type: array, items: { type: string } }
+        stations:
+          type: array
+          items:
+            type: object
+            required: [name, x, y]
+            properties:
+              name: { type: string }
+              x: { type: number }
+              y: { type: number }
+        players:
+          type: array
+          items:
+            type: object
+            required: [name, x, y]
+            properties:
+              name: { type: string }
+              x: { type: number }
+              y: { type: number }
+        bounds:
+          type: object
+          required: [minX, minY, maxX, maxY]
+          properties:
+            minX: { type: number }
+            minY: { type: number }
+            maxX: { type: number }
+            maxY: { type: number }

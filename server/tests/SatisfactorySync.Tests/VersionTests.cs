@@ -75,6 +75,21 @@ public sealed class VersionTests : IDisposable
     }
 
     [Fact]
+    public async Task Download_RangeBeyondEnd_Returns416()
+    {
+        var c = await _server.UserAsync("Mira");
+        var (token, head) = await c.LeaseAsync();
+        var data = SaveFactory.Build();
+        var id = (await UploadOkAsync(c, data, token, head)).GetProperty("id").GetInt64();
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"/api/versions/{id}/file");
+        req.Headers.Range = new RangeHeaderValue(data.Length + 10, null);
+        var res = await c.SendAsync(req);
+        Assert.Equal(HttpStatusCode.RequestedRangeNotSatisfiable, res.StatusCode);
+        Assert.Equal(data.Length, res.Content.Headers.ContentRange?.Length);
+    }
+
+    [Fact]
     public async Task Download_IfNoneMatch_Returns304()
     {
         var c = await _server.UserAsync("Mira");
