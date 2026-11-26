@@ -13,6 +13,7 @@
 import type {
   ActionResult,
   AppState,
+  LinkCodeResult,
   MapData,
   RedeemInviteInput,
   Settings,
@@ -44,6 +45,7 @@ export interface LauncherBackend {
   getSettings(): Promise<Settings>;
   updateSettings(patch: SettingsPatch): Promise<Settings>;
   copySessionCode(): Promise<ActionResult>;
+  createLinkCode(): Promise<LinkCodeResult>;
 }
 
 /**

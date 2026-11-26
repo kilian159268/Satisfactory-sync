@@ -138,7 +138,9 @@ export function LoginPage() {
               setName(event.target.value);
             }}
           />
-          <p className="settings__hint">So sehen dich die anderen in der Gruppe.</p>
+          <p className="settings__hint">
+            So sehen dich die anderen in der Gruppe. Bei einem Code für einen zweiten Zugang egal.
+          </p>
           {fieldError('name')}
         </div>
 

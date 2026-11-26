@@ -28,6 +28,7 @@ const api: SchichtwechselApi = {
   getSettings: () => ipcRenderer.invoke(IPC.getSettings),
   updateSettings: (patch) => ipcRenderer.invoke(IPC.updateSettings, patch),
   copySessionCode: () => ipcRenderer.invoke(IPC.copySessionCode),
+  createLinkCode: () => ipcRenderer.invoke(IPC.createLinkCode),
   window: {
     minimize: () => {
       void ipcRenderer.invoke(IPC.windowMinimize);

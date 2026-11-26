@@ -91,8 +91,17 @@ export type UploadResult = z.infer<typeof UploadResultSchema>;
 export const RedeemRequestSchema = z.object({ code: z.string(), name: z.string() });
 export type RedeemRequest = z.infer<typeof RedeemRequestSchema>;
 /** `POST /api/auth/redeem` → 200. */
-export const RedeemResponseSchema = z.object({ token: z.string().min(1), name: z.string() });
+export const RedeemResponseSchema = z.object({
+  token: z.string().min(1),
+  name: z.string(),
+  /** true = Verknüpfungscode: weiterer Zugang eines bestehenden Spielers. */
+  linked: z.boolean().optional(),
+});
 export type RedeemResponse = z.infer<typeof RedeemResponseSchema>;
+
+/** `POST /api/me/link-code`: Code für einen weiteren Zugang desselben Spielers. */
+export const LinkCodeResponseSchema = z.object({ code: z.string().min(1), expiresAt: z.string() });
+export type LinkCodeResponse = z.infer<typeof LinkCodeResponseSchema>;
 
 /** `GET /api/me`. */
 export const MeResponseSchema = z.object({ name: z.string() });

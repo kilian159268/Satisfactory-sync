@@ -68,6 +68,7 @@ export function registerIpcHandlers(options: IpcHandlerOptions): () => void {
     [IPC.getSettings]: () => backend.getSettings(),
     [IPC.updateSettings]: (patch) => backend.updateSettings(patch),
     [IPC.copySessionCode]: () => backend.copySessionCode(),
+    [IPC.createLinkCode]: () => backend.createLinkCode(),
     [IPC.windowMinimize]: () => {
       getWindow()?.minimize();
       return undefined;

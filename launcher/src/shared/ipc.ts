@@ -227,6 +227,13 @@ export const MapDataSchema = z.object({
 export type MapData = z.infer<typeof MapDataSchema>;
 export type Terrain = z.infer<typeof TerrainSchema>;
 
+/** Ergebnis von `createLinkCode`. */
+export const LinkCodeResultSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), code: z.string().min(1).max(32), expiresAt: IsoDateTimeSchema }),
+  z.object({ ok: z.literal(false), error: z.string() }),
+]);
+export type LinkCodeResult = z.infer<typeof LinkCodeResultSchema>;
+
 // ---------------------------------------------------------------- Kanäle
 
 const NoArgs = z.tuple([]);
@@ -247,6 +254,7 @@ export const invokeContract = {
   [IPC.getSettings]: { args: NoArgs, result: SettingsSchema },
   [IPC.updateSettings]: { args: z.tuple([SettingsPatchSchema]), result: SettingsSchema },
   [IPC.copySessionCode]: { args: NoArgs, result: ActionResultSchema },
+  [IPC.createLinkCode]: { args: NoArgs, result: LinkCodeResultSchema },
   [IPC.windowMinimize]: { args: NoArgs, result: z.undefined() },
   [IPC.windowClose]: { args: NoArgs, result: z.undefined() },
 } as const satisfies Record<(typeof IPC)[keyof typeof IPC], { args: z.ZodType; result: z.ZodType }>;
@@ -278,6 +286,8 @@ export interface SchichtwechselApi {
   updateSettings(patch: SettingsPatch): Promise<Settings>;
   /** Nur sinnvoll, wenn `AppState.sessionCodeAvailable`; sonst Knopf ausblenden. */
   copySessionCode(): Promise<ActionResult>;
+  /** Code für ein zweites Spielkonto / einen zweiten PC desselben Spielers (24 Std. gültig). */
+  createLinkCode(): Promise<LinkCodeResult>;
   window: {
     minimize(): void;
     close(): void;

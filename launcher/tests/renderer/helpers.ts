@@ -114,6 +114,9 @@ export function installApi(state: AppState = makeState()): ApiHandle {
     updateSettings: vi.fn<SchichtwechselApi['updateSettings']>((patch) =>
       Promise.resolve({ ...SETTINGS, ...patch }),
     ),
+    createLinkCode: vi.fn<SchichtwechselApi['createLinkCode']>(() =>
+      Promise.resolve({ ok: true, code: 'TEST-CODE-0001', expiresAt: '2026-11-27T21:00:00.000Z' }),
+    ),
     copySessionCode: vi.fn<SchichtwechselApi['copySessionCode']>(() =>
       Promise.resolve({ ok: true }),
     ),
