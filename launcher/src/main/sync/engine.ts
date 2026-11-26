@@ -22,6 +22,7 @@ import {
   MapDataSchema,
   type ActionResult,
   type AppState,
+  type LinkCodeResult,
   type MapData,
   type Phase,
   type Platform,
@@ -379,10 +380,12 @@ export class SyncEngine implements LauncherBackend {
     });
     let token: string;
     let name: string;
+    let linked: boolean;
     try {
       const res = await client.redeem(input.code, input.name);
       token = res.token;
       name = res.name;
+      linked = res.linked === true;
     } catch (error) {
       if (error instanceof ApiError) return { ok: false, error: error.message };
       return { ok: false, error: 'Server nicht erreichbar. Adresse prüfen und erneut versuchen.' };
@@ -399,7 +402,10 @@ export class SyncEngine implements LauncherBackend {
         await this.connect();
       });
     }
-    return { ok: true, message: `Angemeldet als ${name}.` };
+    return {
+      ok: true,
+      message: linked ? `Als weiterer Zugang von ${name} angemeldet.` : `Angemeldet als ${name}.`,
+    };
   }
 
   async listVersions(): Promise<VersionView[]> {
@@ -455,6 +461,17 @@ export class SyncEngine implements LauncherBackend {
       }
     }
     return next;
+  }
+
+  async createLinkCode(): Promise<LinkCodeResult> {
+    if (this.state.me === null) return { ok: false, error: 'Bitte zuerst anmelden.' };
+    try {
+      const res = await this.api.createLinkCode();
+      return { ok: true, code: res.code, expiresAt: res.expiresAt };
+    } catch (error) {
+      if (error instanceof ApiError) return { ok: false, error: error.message };
+      return { ok: false, error: 'Server nicht erreichbar.' };
+    }
   }
 
   copySessionCode(): Promise<ActionResult> {

@@ -8,6 +8,7 @@ import {
 import { Skeleton } from '../components/Skeleton';
 import { Spinner } from '../components/Spinner';
 import { useAction } from '../hooks/useAction';
+import { LinkAccess } from '../components/LinkAccess';
 import './pages.css';
 
 type Load = { status: 'loading' } | { status: 'ok' } | { status: 'error' };
@@ -193,6 +194,8 @@ export function SettingsPage() {
           </p>
         )}
       </form>
+
+      <LinkAccess />
 
       <div aria-live="polite">
         {action.note !== null && (

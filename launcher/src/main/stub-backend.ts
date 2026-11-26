@@ -9,6 +9,7 @@ import {
   type ActionResult,
   type AppState,
   type CrewView,
+  type LinkCodeResult,
   type MapData,
   type Phase,
   type RedeemInviteInput,
@@ -280,6 +281,14 @@ export class StubBackend implements LauncherBackend {
   updateSettings(patch: SettingsPatch): Promise<Settings> {
     this.settings = { ...this.settings, ...patch };
     return Promise.resolve(this.settings);
+  }
+
+  createLinkCode(): Promise<LinkCodeResult> {
+    return Promise.resolve({
+      ok: true,
+      code: 'TEST-CODE-0001',
+      expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    });
   }
 
   copySessionCode(): Promise<ActionResult> {

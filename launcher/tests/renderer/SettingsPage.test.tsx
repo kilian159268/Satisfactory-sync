@@ -71,3 +71,23 @@ describe('Einstellungen', () => {
     expect(api.updateSettings).toHaveBeenCalledWith({ serverUrl: 'https://sync.beispiel.invalid' });
   });
 });
+
+describe('Zweiter Zugang', () => {
+  it('erzeugt einen Code, zeigt ihn mit Ablaufzeit und kann ihn neu erzeugen', async () => {
+    const { api } = installApi();
+    render(<SettingsPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Code erzeugen' }));
+    expect(await screen.findByLabelText('Verknüpfungscode')).toHaveTextContent('TEST-CODE-0001');
+    expect(screen.getByText(/Einmal einlösbar, gültig bis/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Neuer Code' }));
+    expect(api.createLinkCode).toHaveBeenCalledTimes(2);
+  });
+
+  it('zeigt Fehler vom Launcher an', async () => {
+    const { api } = installApi();
+    api.createLinkCode.mockResolvedValueOnce({ ok: false, error: 'Server nicht erreichbar.' });
+    render(<SettingsPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Code erzeugen' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server nicht erreichbar.');
+  });
+});

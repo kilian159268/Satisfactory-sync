@@ -36,6 +36,40 @@ describe('SyncEngine – Anmeldung, Anwesenheit, Verlauf, Einstellungen', () => 
     expect(h.fs.text(`${h.userData}/token.bin`)).toBe('enc:token-Anna');
   });
 
+  it('zweiter Zugang: Code erzeugen, auf anderem Konto einlösen → dieselbe Person', async () => {
+    const pcA = new Harness();
+    await pcA.start();
+    const link = await pcA.engine.createLinkCode();
+    expect(link.ok).toBe(true);
+    if (!link.ok) return;
+    expect(Date.parse(link.expiresAt)).toBeGreaterThan(pcA.clock.now());
+
+    // Zweiter PC / zweites Konto am selben (simulierten) Server.
+    const pcB = new Harness({ loggedIn: false, server: pcA.server });
+    await pcB.start();
+    expect(pcB.state.phase).toBe('anmelden');
+    const r = await pcB.engine.redeemInvite({
+      code: link.code,
+      name: 'beliebig',
+      serverUrl: 'https://sync.test',
+    });
+    expect(r).toEqual({ ok: true, message: `Als weiterer Zugang von ${pcA.name} angemeldet.` });
+    expect(pcB.state.me).toEqual({ name: pcA.name });
+  });
+
+  it('Code für zweiten Zugang: ohne Anmeldung oder ohne Server → klare Meldung', async () => {
+    const h = new Harness({ loggedIn: false });
+    await h.start();
+    expect(await h.engine.createLinkCode()).toEqual({ ok: false, error: 'Bitte zuerst anmelden.' });
+    const online = new Harness();
+    await online.start();
+    online.server.offline = true;
+    expect(await online.engine.createLinkCode()).toEqual({
+      ok: false,
+      error: 'Server nicht erreichbar.',
+    });
+  });
+
   it('Token vom Server abgelehnt (401) → anmelden', async () => {
     const h = new Harness();
     h.server.tokens.clear();
