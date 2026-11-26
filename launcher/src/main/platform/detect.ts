@@ -5,7 +5,9 @@
 import { join, normalize } from 'node:path';
 import type { Platform } from '../../shared/ipc';
 import {
+  EPIC_APP_NAME_PATTERN,
   EPIC_APP_NAME_PREFIX,
+  EPIC_DEFAULT_APP_NAME,
   EPIC_DISPLAY_NAME,
   EPIC_MANIFEST_DIR,
   EPIC_SAVE_ID,
@@ -130,8 +132,19 @@ export async function findSteamGameDir(fs: FileSystem, steamRoot: string): Promi
 
 // ---------------------------------------------------------------- Epic
 
-export async function findEpicGameDir(fs: FileSystem, programData: string): Promise<string | null> {
+export interface EpicGame {
+  gameDir: string;
+  /** AppName aus dem Manifest, z. B. `Crab` oder der Name der Experimental-Version. */
+  appName: string;
+}
+
+/**
+ * Sucht Satisfactory in den Epic-Manifesten. Sind mehrere Versionen installiert (normal und
+ * Experimental), gewinnt die normale (`Crab`), sonst die erste gefundene.
+ */
+export async function findEpicGame(fs: FileSystem, programData: string): Promise<EpicGame | null> {
   const dir = join(programData, ...EPIC_MANIFEST_DIR);
+  const found: EpicGame[] = [];
   for (const name of await fs.readdir(dir)) {
     if (!name.toLowerCase().endsWith('.item')) continue;
     let manifest: unknown;
@@ -146,11 +159,21 @@ export async function findEpicGameDir(fs: FileSystem, programData: string): Prom
     const display = typeof m.DisplayName === 'string' ? m.DisplayName : '';
     const location = m.InstallLocation;
     if (typeof location !== 'string') continue;
-    if (appName.startsWith(EPIC_APP_NAME_PREFIX) || display.trim() === EPIC_DISPLAY_NAME) {
-      if ((await fs.stat(location))?.isDirectory === true) return location;
+    if (appName.startsWith(EPIC_APP_NAME_PREFIX) || display.trim().startsWith(EPIC_DISPLAY_NAME)) {
+      if ((await fs.stat(location))?.isDirectory === true) {
+        found.push({
+          gameDir: location,
+          appName: EPIC_APP_NAME_PATTERN.test(appName) ? appName : EPIC_DEFAULT_APP_NAME,
+        });
+      }
     }
   }
-  return null;
+  return found.find((g) => g.appName === EPIC_DEFAULT_APP_NAME) ?? found[0] ?? null;
+}
+
+/** Nur der Spielordner (für ältere Aufrufer). */
+export async function findEpicGameDir(fs: FileSystem, programData: string): Promise<string | null> {
+  return (await findEpicGame(fs, programData))?.gameDir ?? null;
 }
 
 // ---------------------------------------------------------------- zusammen
@@ -164,7 +187,7 @@ export interface PlatformEnv {
 
 export interface InstalledGames {
   steam: { root: string; gameDir: string | null } | null;
-  epic: { gameDir: string } | null;
+  epic: EpicGame | null;
 }
 
 export async function detectInstalledGames(
@@ -178,8 +201,7 @@ export async function detectInstalledGames(
     result.steam = { root: steamRoot, gameDir: await findSteamGameDir(fs, steamRoot) };
   }
   if (env.programData !== null) {
-    const epicDir = await findEpicGameDir(fs, env.programData);
-    if (epicDir !== null) result.epic = { gameDir: epicDir };
+    result.epic = await findEpicGame(fs, env.programData);
   }
   return result;
 }

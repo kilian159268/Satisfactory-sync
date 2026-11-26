@@ -17,10 +17,17 @@ export const STEAM_APP_ID = '526870';
 export const STEAM_LAUNCH_URI = `steam://rungameid/${STEAM_APP_ID}`;
 
 /**
- * Start über Epic. ANNAHME (Kapitel 14, erster Punkt): App-Name `Crab` startet das Spiel ohne
- * sichtbares Launcher-Fenster.
+ * Start über Epic. ANNAHME (Kapitel 14, erster Punkt): `com.epicgames.launcher://apps/<AppName>`
+ * startet das Spiel ohne sichtbares Launcher-Fenster. Der AppName kommt aus dem Epic-Manifest des
+ * installierten Spiels (normale Version `Crab`, Experimental hat einen eigenen Namen); ohne Manifest
+ * wird `Crab` genommen.
  */
-export const EPIC_LAUNCH_URI = 'com.epicgames.launcher://apps/Crab?action=launch&silent=true';
+export const EPIC_DEFAULT_APP_NAME = 'Crab';
+export const epicLaunchUri = (appName: string): string =>
+  `com.epicgames.launcher://apps/${encodeURIComponent(appName)}?action=launch&silent=true`;
+export const EPIC_LAUNCH_URI = epicLaunchUri(EPIC_DEFAULT_APP_NAME);
+/** Erlaubte Zeichen eines AppName aus dem Manifest (alles andere → Standard). */
+export const EPIC_APP_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 // ---------------------------------------------------------------- Prozess (Kapitel 14, zweiter Punkt)
 
