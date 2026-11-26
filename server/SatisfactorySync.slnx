@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SatisfactorySync.Api/SatisfactorySync.Api.csproj" />
+    <Project Path="src/SatisfactorySync.Core/SatisfactorySync.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SatisfactorySync.Tests/SatisfactorySync.Tests.csproj" />
+  </Folder>
+</Solution>
