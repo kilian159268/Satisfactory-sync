@@ -1,0 +1,78 @@
+# systemd-Unit für den Satisfactory-sync-Server (Plan 5.5).
+# Ziel: /etc/systemd/system/satisfactory-sync.service (wird von deploy/deploy.sh installiert).
+# Läuft als eigener Systembenutzer ohne Login und ohne Root-Rechte, lauscht nur auf 127.0.0.1:3160.
+
+[Unit]
+Description=Satisfactory-sync Server (Schichtwechsel)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=satisfactory-sync
+Group=satisfactory-sync
+WorkingDirectory=/opt/satisfactory-sync
+ExecStart=/opt/satisfactory-sync/SatisfactorySync.Api
+
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:3160
+# "Urls" (ohne Präfix) schlägt einen evtl. vorhandenen Urls-Eintrag aus appsettings.json.
+Environment=Urls=http://127.0.0.1:3160
+Environment=Sync__DataDir=/var/lib/satisfactory-sync
+Environment=SYNC_CONFIG=/etc/satisfactory-sync/appsettings.json
+Environment=DOTNET_gcServer=0
+Environment=DOTNET_CLI_TELEMETRY_OPTOUT=1
+Environment=DOTNET_NOLOGO=1
+
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Ressourcen: der Server teilt sich den Rechner mit Minecraft – klein halten.
+MemoryMax=300M
+MemoryHigh=250M
+TasksMax=128
+LimitNOFILE=4096
+Nice=5
+
+# Verzeichnisse (systemd legt sie mit passendem Besitzer an, falls sie fehlen).
+StateDirectory=satisfactory-sync
+StateDirectoryMode=0750
+ConfigurationDirectory=satisfactory-sync
+ConfigurationDirectoryMode=0750
+UMask=0027
+
+# Härtung
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/satisfactory-sync
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+PrivateUsers=true
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RemoveIPC=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount @swap @reboot @obsolete
+SystemCallErrorNumber=EPERM
+# MemoryDenyWriteExecute bleibt AUS: der .NET-JIT braucht ausführbaren Speicher.
+
+[Install]
+WantedBy=multi-user.target
