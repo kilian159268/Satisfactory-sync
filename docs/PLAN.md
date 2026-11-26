@@ -208,8 +208,15 @@ Header: `Lease-Token`, `Base-Version`, `Content-SHA256`, `Idempotency-Key`.
 ### 5.5 Betrieb
 
 - systemd-Service, läuft als eigener Benutzer ohne Root-Rechte.
-- Hinter dem vorhandenen **nginx** mit HTTPS (eigener `location`-Block, `client_max_body_size`
-  passend zur Save-Größe, Timeouts für große Uploads). Die genaue Konfiguration kommt in die Doku. Nur HTTPS, kein offener Port nach außen.
+- Hinter dem vorhandenen **nginx** mit HTTPS: eigene Subdomain **`sync.v3in.de`** mit eigener
+  nginx-Datei und eigenem Zertifikat (certbot), `client_max_body_size` passend zur Save-Größe,
+  Timeouts für große Uploads. Konfiguration: [`deploy/`](../deploy/). Nur HTTPS, kein offener Port nach außen.
+  *Änderung 2026-11-26:* ursprünglich `/sync/` unter der vorhandenen sslip.io-Domain. Diese Domain
+  gehört dem Forum; mit eigener Subdomain bleibt dessen Konfiguration unberührt (Wunsch des Betreibers).
+  Der Server unterstützt trotzdem einen Pfad-Präfix (`PathBase`), falls er doch unter einem Pfad laufen soll.
+- Ausgeliefert wird ein **self-contained** `linux-x64`-Build (gebaut auf dem Entwickler-PC bzw. in CI).
+  *Änderung 2026-11-26:* Auf dem Root-Server ist kein .NET installiert, und neben Minecraft sind nur
+  ~1,7 GB RAM frei. Self-contained braucht keine Paketinstallation und keine Build-Last auf dem Server.
 - Rate-Limiting (ASP.NET Core hat das eingebaut), Größenlimit für Uploads.
 - Log mit strukturierten Einträgen; Health-Endpoint `/healthz`.
 
@@ -417,7 +424,8 @@ satisfactory-sync/
 | **M5** | Härtung (alle Fälle aus Kapitel 8), Cloud-Erkennung, Installer + Auto-Update über GitHub Actions (`windows-latest`). | Code/CI |
 | **M6** | Testrunde mit der Gruppe (ein Steam-, ein Epic-PC), dann 1.0. | Windows-PCs |
 
-Die Windows-Teile (M3–M6) lassen sich auf dem Linux-Server nur bauen und unit-testen; echte
+Gebaut und unit-getestet wird auf dem Entwickler-PC (Windows) und in CI; der Root-Server bekommt nur
+fertige Builds (*Änderung 2026-11-26*, siehe 5.5). Echte
 Tests mit Satisfactory laufen auf einem Windows-PC. Die Prüfpunkte aus Kapitel 14 werden dort
 als Erstes abgehakt.
 
@@ -437,6 +445,6 @@ als Erstes abgehakt.
 **Entschieden:**
 
 - Launcher: Electron + TypeScript (Logik und UI). Server: C# / ASP.NET Core (.NET 10), SQLite.
-- nginx als Reverse-Proxy; API unter einem eigenen Pfad der vorhandenen Domain (z. B. `/sync/`).
+- nginx als Reverse-Proxy; API auf eigener Subdomain `sync.v3in.de` (geändert 2026-11-26, siehe 5.5).
 - 4–5 Spieler, alle gleichberechtigt, kein Admin. Genau ein gemeinsamer Spielstand.
 - Dunkles Design nach `DESIGN.md`, Logo = V3in-Logo in Orange.
