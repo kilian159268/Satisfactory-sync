@@ -291,6 +291,26 @@ der Parser wird mit echten Saves getestet; Referenz: `@etothepii/satisfactory-fi
   letzten gültigen Stand oder einen leeren Zustand mit Hinweis.
 - Die Karte kommt erst nach dem Kern (Meilenstein M4), damit der Sync nicht davon abhängt.
 
+### 6.7 Umgesetzt im Launcher (Ergänzungen, 2026-11-26)
+
+- Abschluss in der Reihenfolge des Diagramms 6.1: erst Lease freigeben, dann aufräumen. Sicher, weil vorher
+  der Upload per Hash bestätigt sein muss. Schlägt die Freigabe fehl (offline), läuft die Lease nach 2 min ab.
+- Aufräumen: vom Server bestätigte Stände → `cache/archive`, alles andere → Quarantäne. Beides nur Verschieben.
+- Uploads während des Spiels laufen über eine Kopie im Cache (`cache/snapshots/<sha>.sav`); ein offener Upload
+  wird immer mit demselben Idempotency-Key fertig, bevor ein neuerer Save drankommt.
+- Recovery bei laufendem Spiel: ab `vorbereiten` wird weiter gehostet, davor wird die Lease zurückgegeben.
+- Allererste Session (Server hat noch keinen Stand): der erste Save nach Host-Start legt die Session fest.
+- Quarantäne beim Öffnen nur, wenn das Spiel nicht läuft; sonst nach Spielende.
+- Bei mehreren Save-Ordnern gewinnt vorerst der mit dem jüngsten Save (Nachfrage-Dialog offen).
+- Karte und Cloud-Erkennung sind optionale Module (`import.meta.glob`); fehlen sie oder scheitern sie, läuft der
+  Sync unverändert weiter.
+- Karte (6.6): Der Parser läuft im Worker-Thread mit Schutz gegen übergroße Längenangaben, weil die Bibliothek
+  bei manchen kaputten Dateien sonst den ganzen Prozess abbricht. **Offen:** Umstieg auf einen eigenen Prozess
+  (`utilityProcess`), der auch unentdeckte Absturzpfade abfängt. Im Installer liegt der Worker ausgepackt
+  (`asarUnpack`).
+- Alle Annahmen über Spiel, Steam und Epic stehen in `launcher/src/main/game-assumptions.ts`,
+  `launcher/src/main/map/building-classes.ts` und `launcher/src/main/cloud/constants.ts` (siehe Kapitel 14).
+
 ## 7. Steam-/Epic-Cloud – der versteckte Gegner
 
 Beide Stores synchronisieren Satisfactory-Saves in ihre Cloud. Das kann einen Save, den der
