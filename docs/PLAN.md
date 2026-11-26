@@ -1,7 +1,10 @@
 # Satisfactory-sync – Plan
 
-Status: **Entwurf zur Abstimmung**. Es gibt noch keinen Code. Erst wenn dieser Plan
-abgenickt ist, wird gebaut.
+Status: **Abgenommen, bereit zur Umsetzung.** Design-Regeln: [`DESIGN.md`](DESIGN.md),
+klickbarer Entwurf: [`design/launcher-entwurf.dc.html`](design/launcher-entwurf.dc.html).
+
+**Name (Arbeitstitel):** Schichtwechsel. **Logo:** V3in-Logo, orange eingefärbt (Datei folgt; bis dahin
+das Inline-SVG aus dem Entwurf).
 
 **Rahmen:** 4–5 Spieler, alle gleichberechtigt (kein Admin), **genau ein** gemeinsamer
 Spielstand, Windows-PCs mit Steam oder Epic, Server hinter nginx.
@@ -150,6 +153,7 @@ Host beendet → Upload → Lease frei → nächster drückt „Spielen“. Mehr
   hochgeladen_von, zeitpunkt, typ (`normal`/`konflikt`/`import`)
 - `leases` – höchstens eine Zeile: user_id, fencing_token, basis_version, läuft_ab_um
 - `fencing_counter` – streng steigend, nie zurückgesetzt
+- `presence` – user_id, status (`launcher`/`im_spiel`), zuletzt_gesehen
 - `audit_log` – wer hat wann was gemacht
 
 Es gibt bewusst nur einen Spielstand. Soll später eine zweite Welt (z. B. Testwelt) dazukommen,
@@ -166,6 +170,10 @@ wird aus `world` eine Tabelle – die restliche Logik bleibt gleich.
 | `GET` | `/api/versions/{v}/file` | Download (mit `ETag` = SHA-256, Range-Support) |
 | `POST` | `/api/versions` | Upload (siehe 5.3) |
 | `GET` | `/api/versions` | Verlauf (Backups) |
+| `PUT` | `/api/presence` | Lebenszeichen **jedes** Launchers alle 30 s: `launcher` oder `im_spiel` |
+| `GET` | `/api/crew` | Alle Spieler mit Status (Launcher offen / im Spiel / zuletzt gesehen) und wer hostet |
+| `PUT` | `/api/versions/{v}/map` | Karten-Daten (JSON) zu einer Version ablegen, vom Host-Launcher |
+| `GET` | `/api/versions/{v}/map` | Karten-Daten für die Startseite |
 | `POST` | `/api/versions/{v}/restore` | Alte Version wieder zum aktuellen Stand machen (nur wenn niemand hostet) |
 | `POST` | `/api/lease/force-release` | Hängende Lease lösen (nur wenn sie abgelaufen ist oder der Host selbst es auslöst) |
 
@@ -264,6 +272,25 @@ der Parser wird mit echten Saves getestet; Referenz: `@etothepii/satisfactory-fi
 
 ---
 
+### 6.5 Anwesenheit („Gruppe“)
+
+- Jeder Launcher meldet sich alle 30 s mit `launcher` oder `im_spiel` (Spielprozess läuft) – auch Mitspieler.
+- Nach 90 s ohne Meldung gilt ein Spieler als offline („zuletzt vor …“).
+- Die Fußzeile zeigt, wer hostet, und die Verbindung zum Server mit Antwortzeit (aus dem Lebenszeichen gemessen).
+
+### 6.6 Karte
+
+- Nach einem **erfolgreichen** Upload liest der Host-Launcher den Spielstand in einem Worker-Thread
+  komplett ein (`@etothepii/satisfactory-file-parser`) und erzeugt eine kleine `map.json`:
+  Gebäude zu Clustern zusammengefasst (Position, Anzahl, häufigste Gebäudetypen), Bahnhöfe,
+  letzte Spielerpositionen. Die wird an die Version gehängt (`PUT /api/versions/{v}/map`).
+- Bewusst im Launcher und nicht auf dem Server: Das Einlesen großer Saves braucht viel RAM,
+  der Root-Server hat nur 8 GB und Minecraft läuft dort auch.
+- Die Karte wird selbst gezeichnet (SVG). Die Originalkarte des Spiels wird **nicht** verwendet.
+- Schlägt das Einlesen fehl, hat das keinen Einfluss auf den Sync – die Karte zeigt dann den
+  letzten gültigen Stand oder einen leeren Zustand mit Hinweis.
+- Die Karte kommt erst nach dem Kern (Meilenstein M4), damit der Sync nicht davon abhängt.
+
 ## 7. Steam-/Epic-Cloud – der versteckte Gegner
 
 Beide Stores synchronisieren Satisfactory-Saves in ihre Cloud. Das kann einen Save, den der
@@ -325,36 +352,21 @@ Warnung („Weitere Informationen → Trotzdem ausführen“). Für eine private
 
 ## 10. Oberfläche & Design
 
-Ziel: **richtig schön** – wirkt wie ein durchdachtes, hochwertiges Produkt, nicht wie ein
-Template und nicht wie zusammengeklickt. Gebaut mit HTML/CSS im Electron-Fenster.
+Verbindlich sind [`DESIGN.md`](DESIGN.md) und der Entwurf
+[`design/launcher-entwurf.dc.html`](design/launcher-entwurf.dc.html) (Aufbau, Zustände, Texte).
+Kurzfassung:
 
-**Aufbau**
+- Dunkel, Farben 60/30/10: `#141416` Grund, `#1C1D20` Flächen, Orange `#F59A4A` als einziger Akzent.
+- Eine Schrift (Geist, lokal eingebunden), 8-px-Raster, 1-px-Rahmen, keine Schatten/Verläufe/Glows.
+- Startseite: Karte oben, darunter Aktionsleiste (Status links; „Nur Spiel starten“ + Hauptknopf rechts),
+  Seitenleiste rechts („Aktueller Stand“, „Gruppe“), Fußzeile (wer hostet, Serververbindung).
+- Reiter „Verlauf“ (Versionen, Zurückholen mit Bestätigung) und „Einstellungen“
+  (Plattform, Spielstand-Ordner, Autostart).
+- Eigene Titelleiste (rahmenloses Fenster), Tray-Symbol, Mindestgröße 960 × 600.
+- Jeder Zustand aus 6.1 hat eine Ansicht im Entwurf; Ladezustände mit Spinner/Skeleton.
 
-- **Ein Bildschirm, ein Hauptknopf.** Eine große Statuskarte („Bereit zum Hosten“,
-  „Max hostet seit 20:14“, „Lädt hoch … 64 %“) und ein Knopf, dessen Text sich mit dem
-  Zustand ändert. Darunter kompakt: letzter Stand (Spielzeit, wann, von wem).
-- Verlauf und Einstellungen als ruhige Nebenansichten, nicht als vollgestopfte Seitenleiste.
-- Eigene Titelleiste (rahmenloses Fenster) mit Logo, Minimieren/Schließen.
-- Tray-Symbol: Während des Spiels läuft der Launcher im Hintergrund und zeigt dort den Sync-Status.
-
-**Gestaltung**
-
-- Dunkle, tiefe Grundfläche mit feinem Kornrauschen und einem weichen Lichtverlauf hinter
-  der Statuskarte – Tiefe statt flacher Grauflächen.
-- Eine warme Akzentfarbe (Orange) für den Hauptknopf und aktive Zustände; Grün/Rot nur für
-  Erfolg/Fehler. Alles über CSS-Variablen (Design-Tokens), damit es einheitlich bleibt.
-- Typografie mit Charakter: eine ausdrucksstarke Schrift für Überschriften, eine gut lesbare
-  für Text, eine Monospace mit Tabellenziffern für Zahlen (Versionen, Spielzeit, Prozent).
-  Lokal eingebunden, keine Google-Fonts-Abfrage.
-- Durchdachte Mikro-Interaktionen: Knopf mit leichtem Glühen bei Hover, Fortschrittsring beim
-  Hoch-/Herunterladen, sanfte Übergänge zwischen Zuständen (CSS-Transitions, View
-  Transitions). Respektiert „Bewegung reduzieren“ in Windows.
-- Konsequente Abstände (8-px-Raster), saubere Kanten, kein Mischmasch aus Schatten und Rahmen.
-- **Logo:** kommt von dir. Name/Logo des Spiels und FICSIT-Grafiken werden nicht verwendet.
-- Fehlermeldungen in normalem Deutsch mit nächstem Schritt, keine Stacktraces.
-
-**Vorgehen:** Zuerst ein klickbarer Design-Entwurf (nur Oberfläche, Beispieldaten) zum
-Abnicken. Erst danach wird die Oberfläche an die echte Logik angeschlossen.
+**Im Entwurf noch zu klären:** Der Knopf „Session-Code kopieren“ setzt voraus, dass das Spiel einen
+Beitrittscode anzeigt, den der Launcher auslesen kann. Wird in M0 geprüft; sonst entfällt der Knopf.
 
 ---
 
@@ -396,35 +408,35 @@ satisfactory-sync/
 
 ## 13. Meilensteine
 
-| # | Inhalt |
-|---|---|
-| **M0** | Annahmen auf einem echten Windows-PC prüfen (siehe 14). Dafür brauche ich von dir ein paar Infos/Dateien. |
-| **M1** | Server: Lease, Versionen, Upload/Download, Tests. Deployment auf dem Root-Server. |
-| **M2** | Launcher-Kern ohne UI: Zustandsmaschine, Pfade, Header, Prozess-Wächter, Recovery. |
-| **M3** | Design-Entwurf → UI bauen. |
-| **M4** | Härtung: alle Fehlerfälle, Cloud-Erkennung, Installer, Auto-Update. |
-| **M5** | Testrunde mit der Gruppe, dann Version 1.0. |
+| # | Inhalt | Wo |
+|---|---|---|
+| **M1** | Server: Lease, Fencing, Versionen, Upload/Download, Anwesenheit, Tests. | Code: überall; Deployment: Root-Server |
+| **M2** | Deployment: systemd-Dienst, nginx-`location`, HTTPS, Einladungscodes für die Gruppe. | Root-Server |
+| **M3** | Launcher-Kern ohne UI: Zustandsmaschine, Journal, Pfade, Header-Parser, Prozess-Wächter, Recovery. | Code; Test auf Windows |
+| **M4** | Oberfläche nach Entwurf, Tray, Autostart, danach Karte. | Code; Test auf Windows |
+| **M5** | Härtung (alle Fälle aus Kapitel 8), Cloud-Erkennung, Installer + Auto-Update über GitHub Actions (`windows-latest`). | Code/CI |
+| **M6** | Testrunde mit der Gruppe (ein Steam-, ein Epic-PC), dann 1.0. | Windows-PCs |
+
+Die Windows-Teile (M3–M6) lassen sich auf dem Linux-Server nur bauen und unit-testen; echte
+Tests mit Satisfactory laufen auf einem Windows-PC. Die Prüfpunkte aus Kapitel 14 werden dort
+als Erstes abgehakt.
 
 ---
 
-## 14. Noch zu prüfen / offene Fragen
+## 14. Noch zu prüfen / Entscheidungen
 
-**Am echten System zu prüfen (M0):**
+**Am echten Windows-PC zu prüfen (vor bzw. in M3):**
 
 - [ ] Epic-Start-URI mit App-Name `Crab` startet das Spiel ohne Launcher-Fenster.
 - [ ] Prozessnamen nach Start über Steam/Epic (Steam startet eventuell neu).
-- [ ] Header-Format eines aktuellen Saves (Beispiel-Save von dir).
+- [ ] Header-Format eines aktuellen Saves (Beispiel-Save).
 - [ ] Liegen Blaupausen pro Session in eigenem Ordner?
 - [ ] Verhalten der Steam-/Epic-Cloud, wenn ein Save außerhalb des Spiels verschoben wird.
+- [ ] Gibt es einen Beitrittscode, den der Launcher anzeigen kann?
 
 **Entschieden:**
 
-- Launcher-Oberfläche in Electron (HTML/CSS), Logik im Hintergrund in TypeScript; Server in C#.
-- nginx als Reverse-Proxy.
-- 4–5 Spieler, alle gleichberechtigt, kein Admin.
-- Genau ein gemeinsamer Spielstand.
-
-**Noch offen:**
-
-1. Logo-Datei (kommt von dir) und Name des Launchers.
-2. Unter welcher Adresse soll die API laufen (z. B. `/sync` unter deiner sslip.io-Domain)?
+- Launcher: Electron + TypeScript (Logik und UI). Server: C# / ASP.NET Core (.NET 10), SQLite.
+- nginx als Reverse-Proxy; API unter einem eigenen Pfad der vorhandenen Domain (z. B. `/sync/`).
+- 4–5 Spieler, alle gleichberechtigt, kein Admin. Genau ein gemeinsamer Spielstand.
+- Dunkles Design nach `DESIGN.md`, Logo = V3in-Logo in Orange.

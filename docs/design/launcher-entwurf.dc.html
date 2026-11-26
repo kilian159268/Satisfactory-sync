@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Launcher Startseite</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#141416}
+button{font:inherit;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease}
+button:disabled{cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid #F59A4A;outline-offset:2px}
+.btn-primary:hover:not(:disabled){background:#F8B176}
+.btn-ghost:hover:not(:disabled){background:#26272B}
+.tab:hover{color:#ECECEE}
+.mk{cursor:pointer}
+.mk:hover .mk-shape{stroke:#ECECEE}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{animation:spin .8s linear infinite}
+@keyframes shimmer{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+.skel{animation:shimmer 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.spinner{animation-duration:1.6s}.skel{animation:none}}
+</style>
+</helmet>
+<div style="width:100%;min-height:600px;box-sizing:border-box;display:flex;flex-direction:column;background:#141416;color:#ECECEE;font-family:'Geist',system-ui,sans-serif;font-size:14px;font-variant-numeric:tabular-nums">
+
+  <header style="height:48px;display:flex;align-items:center;gap:24px;padding:0 0 0 16px;border-bottom:1px solid #2A2B30;background:#1C1D20">
+    <div style="display:flex;align-items:center;gap:8px">
+      <svg width="24" height="24" viewBox="0 0 800 800" role="img" aria-label="V3in-Logo">
+        <polygon points="400,31 721,216 721,584 400,769 79,584 79,216" fill="none" stroke="#F59A4A" stroke-width="34" stroke-linejoin="miter"></polygon>
+        <polygon points="178,238 258,238 400,478 400,612" fill="#F59A4A"></polygon>
+        <polygon points="545,238 625,238 400,612 400,478" fill="#FBC793"></polygon>
+      </svg>
+      <span style="font-weight:600;font-size:16px">Schichtwechsel</span>
+    </div>
+    <nav aria-label="Bereiche" style="display:flex;gap:8px;align-self:stretch">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+        <button class="tab" onClick="{{t.go}}" aria-current="{{t.current}}" style="background:none;border:0;border-bottom:2px solid {{t.line}};padding:0 8px;font-size:14px;font-weight:500;color:{{t.color}}">{{t.label}}</button>
+      </sc-for>
+    </nav>
+    <div style="margin-left:auto;display:flex">
+      <button class="btn-ghost" aria-label="Minimieren" style="width:48px;height:48px;background:none;border:0;color:#9B9DA4;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" stroke="currentColor" stroke-width="1.4"></path></svg></button>
+      <button class="btn-ghost" aria-label="Schließen" style="width:48px;height:48px;background:none;border:0;color:#9B9DA4;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.4"></path></svg></button>
+    </div>
+  </header>
+
+  <div style="flex:1;display:flex;flex-wrap:wrap;min-height:0">
+    <div style="flex:999 1 480px;min-width:0;display:flex;flex-direction:column">
+
+      <sc-if value="{{isStart}}" hint-placeholder-val="{{ true }}">
+        <section aria-label="Karte" style="flex:1;min-height:320px;position:relative;overflow:hidden;background:#141416">
+          <svg viewBox="{{viewBox}}" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%" role="group" aria-label="Karte der Fabrik">
+            <rect x="-500" y="-500" width="2000" height="1600" fill="#141416"></rect>
+            <sc-for list="{{gridLines}}" as="g" hint-placeholder-count="30">
+              <line x1="{{g.x1}}" y1="{{g.y1}}" x2="{{g.x2}}" y2="{{g.y2}}" stroke="#1C1D20" stroke-width="1"></line>
+            </sc-for>
+            <path d="M-40 520 C 120 470, 180 380, 330 400 S 520 520, 700 470 S 900 360, 1040 400" fill="none" stroke="#202126" stroke-width="40" stroke-linecap="round"></path>
+            <path d="M80 120 C 200 60, 340 90, 380 170 S 300 300, 180 270 S 20 200, 80 120 Z" fill="none" stroke="#24252A" stroke-width="1.5"></path>
+            <path d="M110 140 C 200 100, 310 120, 330 170 S 280 250, 190 240 S 70 200, 110 140 Z" fill="none" stroke="#24252A" stroke-width="1.5"></path>
+            <path d="M680 60 C 800 40, 930 90, 940 190 S 840 280, 760 250 S 620 120, 680 60 Z" fill="none" stroke="#24252A" stroke-width="1.5"></path>
+            <path d="M260 420 L 420 300 L 620 140 M 420 300 L 800 330" fill="none" stroke="#3A3B41" stroke-width="3" stroke-dasharray="10 6"></path>
+            <sc-for list="{{sites}}" as="s" hint-placeholder-count="4">
+              <g class="mk" onClick="{{s.pick}}" role="button" aria-label="{{s.name}}">
+                <rect class="mk-shape" x="{{s.rx}}" y="{{s.ry}}" width="{{s.size}}" height="{{s.size}}" rx="3" fill="{{s.fill}}" stroke="{{s.stroke}}" stroke-width="2"></rect>
+                <text x="{{s.x}}" y="{{s.ty}}" text-anchor="middle" fill="{{s.labelColor}}" style="font-family:Geist,sans-serif;font-size:13px;font-weight:500">{{s.name}}</text>
+              </g>
+            </sc-for>
+            <sc-for list="{{players}}" as="pl" hint-placeholder-count="2">
+              <g class="mk" onClick="{{pl.pick}}" role="button" aria-label="{{pl.name}}">
+                <circle class="mk-shape" cx="{{pl.x}}" cy="{{pl.y}}" r="11" fill="#1C1D20" stroke="{{pl.stroke}}" stroke-width="2"></circle>
+                <text x="{{pl.x}}" y="{{pl.ty}}" text-anchor="middle" fill="#ECECEE" style="font-family:Geist,sans-serif;font-size:11px;font-weight:600">{{pl.initial}}</text>
+              </g>
+            </sc-for>
+          </svg>
+
+          <div style="position:absolute;top:16px;left:16px;display:flex;gap:8px">
+            <sc-for list="{{filters}}" as="f" hint-placeholder-count="2">
+              <button onClick="{{f.toggle}}" aria-pressed="{{f.on}}" style="height:32px;padding:0 12px;border:1px solid {{f.border}};border-radius:6px;background:#1C1D20;color:{{f.color}};font-size:13px;font-weight:500">{{f.label}}</button>
+            </sc-for>
+          </div>
+          <div style="position:absolute;top:16px;right:16px;display:flex;flex-direction:column;border:1px solid #2A2B30;border-radius:6px;overflow:hidden;background:#1C1D20">
+            <button class="btn-ghost" onClick="{{zoomIn}}" aria-label="Hineinzoomen" style="width:32px;height:32px;border:0;border-bottom:1px solid #2A2B30;background:none;color:#ECECEE;font-size:16px">+</button>
+            <button class="btn-ghost" onClick="{{zoomOut}}" aria-label="Herauszoomen" style="width:32px;height:32px;border:0;background:none;color:#ECECEE;font-size:16px">−</button>
+          </div>
+          <sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;left:16px;bottom:16px;width:240px;box-sizing:border-box;padding:16px;border:1px solid #2A2B30;border-radius:6px;background:#1C1D20">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+                <span style="font-weight:600">{{selName}}</span>
+                <button onClick="{{clearSel}}" aria-label="Info schließen" style="border:0;background:none;color:#9B9DA4;padding:0 4px;font-size:16px">×</button>
+              </div>
+              <p style="margin:8px 0 0;color:#9B9DA4;font-size:13px;line-height:1.5">{{selInfo}}</p>
+            </div>
+          </sc-if>
+          <p style="position:absolute;right:16px;bottom:16px;margin:0;font-size:12px;color:#6C6E75">Aus Version {{version}}</p>
+        </section>
+
+        <section aria-live="polite" style="display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px;padding:16px 24px;border-top:1px solid #2A2B30;background:#1C1D20">
+          <div style="flex:1 1 240px;min-width:0;display:flex;flex-direction:column;gap:8px">
+            <sc-if value="{{isLoadingStatus}}" hint-placeholder-val="{{ false }}">
+              <div class="skel" style="width:180px;height:16px;border-radius:4px;background:#2A2B30"></div>
+              <div class="skel" style="width:120px;height:12px;border-radius:4px;background:#2A2B30"></div>
+            </sc-if>
+            <sc-if value="{{showStatus}}" hint-placeholder-val="{{ true }}">
+              <span style="font-size:20px;font-weight:600;letter-spacing:-.01em">{{title}}</span>
+              <sc-if value="{{hasProgress}}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{p}}" style="flex:1;max-width:280px;height:4px;border-radius:2px;background:#2A2B30;overflow:hidden">
+                    <div style="height:100%;width:{{pWidth}};background:#F59A4A"></div>
+                  </div>
+                  <span style="font-size:13px;color:#9B9DA4">{{p}} %</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{hasSub}}" hint-placeholder-val="{{ true }}">
+                <span role="status" style="font-size:13px;color:{{subColor}}">{{sub}}</span>
+              </sc-if>
+            </sc-if>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-if value="{{hasSecondary}}" hint-placeholder-val="{{ true }}">
+              <button class="btn-ghost" onClick="{{secondary}}" style="height:48px;padding:0 16px;border:1px solid #3A3B41;border-radius:6px;background:#1C1D20;color:#ECECEE;font-size:14px;font-weight:500">{{secondaryLabel}}</button>
+            </sc-if>
+            <button class="btn-primary" onClick="{{primary}}" disabled="{{busy}}" style="height:48px;min-width:200px;padding:0 24px;border:1px solid {{btnBorder}};border-radius:6px;background:{{btnBg}};color:{{btnColor}};font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+              <sc-if value="{{busy}}" hint-placeholder-val="{{ false }}"><svg class="spinner" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="3"></circle><path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path></svg></sc-if>
+              {{btn}}
+            </button>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isVerlauf}}" hint-placeholder-val="{{ false }}">
+        <main style="flex:1;box-sizing:border-box;padding:32px;max-width:800px;width:100%">
+          <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;letter-spacing:-.01em">Verlauf</h1>
+          <p style="margin:0 0 24px;color:#9B9DA4">Zurückholen geht nur, wenn niemand hostet.</p>
+          <sc-if value="{{restoreAsk}}" hint-placeholder-val="{{ false }}">
+            <div role="alertdialog" aria-label="Zurückholen bestätigen" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:16px;margin-bottom:16px;border:1px solid #5A3A1F;border-radius:6px;background:#221A13">
+              <span style="flex:1 1 200px">Version {{restoreNum}} zurückholen?</span>
+              <button class="btn-ghost" onClick="{{cancelRestore}}" style="height:40px;padding:0 16px;border:1px solid #3A3B41;border-radius:6px;background:#1C1D20;color:#ECECEE">Abbrechen</button>
+              <button class="btn-primary" onClick="{{confirmRestore}}" style="height:40px;padding:0 16px;border:1px solid #F59A4A;border-radius:6px;background:#F59A4A;color:#1B1006;font-weight:600">Zurückholen</button>
+            </div>
+          </sc-if>
+          <sc-if value="{{hasRestoreNote}}" hint-placeholder-val="{{ false }}">
+            <p role="status" style="margin:0 0 16px;color:#9B9DA4">{{restoreNote}}</p>
+          </sc-if>
+          <ul style="list-style:none;margin:0;padding:0;border-top:1px solid #2A2B30">
+            <sc-for list="{{rows}}" as="v" hint-placeholder-count="6">
+              <li style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 24px;padding:16px 0;border-bottom:1px solid #2A2B30;min-height:24px">
+                <sc-if value="{{v.skel}}" hint-placeholder-val="{{ false }}">
+                  <span class="skel" style="width:40px;height:14px;border-radius:4px;background:#2A2B30"></span>
+                  <span class="skel" style="width:200px;height:14px;border-radius:4px;background:#2A2B30"></span>
+                </sc-if>
+                <sc-if value="{{v.real}}" hint-placeholder-val="{{ true }}">
+                  <span style="width:48px;font-weight:600;color:{{v.numColor}}">{{v.num}}</span>
+                  <span style="flex:1 1 160px"><span style="font-weight:500">{{v.who}}</span><span style="color:#9B9DA4"> {{v.what}}</span></span>
+                  <span style="width:120px;color:#9B9DA4">{{v.time}}</span>
+                  <span style="width:104px;text-align:right">
+                    <sc-if value="{{v.canRestore}}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{v.ask}}" disabled="{{v.blocked}}" title="{{v.blockReason}}" style="background:none;border:0;padding:8px 0;color:{{v.linkColor}};font-weight:500">Zurückholen</button>
+                    </sc-if>
+                    <sc-if value="{{v.isHead}}" hint-placeholder-val="{{ false }}"><span style="color:#9B9DA4">aktuell</span></sc-if>
+                  </span>
+                </sc-if>
+              </li>
+            </sc-for>
+          </ul>
+        </main>
+      </sc-if>
+
+      <sc-if value="{{isSettings}}" hint-placeholder-val="{{ false }}">
+        <main style="flex:1;box-sizing:border-box;padding:32px;max-width:560px;width:100%;display:flex;flex-direction:column;gap:24px">
+          <h1 style="margin:0;font-size:28px;font-weight:600;letter-spacing:-.01em">Einstellungen</h1>
+          <fieldset style="margin:0;padding:0;border:0">
+            <legend style="padding:0;margin-bottom:8px;font-weight:600">Plattform</legend>
+            <div style="display:flex;gap:8px">
+              <sc-for list="{{platforms}}" as="pf" hint-placeholder-count="2">
+                <button onClick="{{pf.pick}}" aria-pressed="{{pf.on}}" style="height:40px;padding:0 16px;border:1px solid {{pf.border}};border-radius:6px;background:{{pf.bg}};color:#ECECEE;font-weight:500">{{pf.label}}</button>
+              </sc-for>
+            </div>
+          </fieldset>
+          <div>
+            <label for="savedir" style="display:block;margin-bottom:8px;font-weight:600">Spielstand-Ordner</label>
+            <input id="savedir" readOnly="{{ true }}" value="{{saveDir}}" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid #3A3B41;border-radius:6px;background:#1C1D20;font:inherit;font-size:13px;color:#C9CACF" />
+          </div>
+          <label style="display:flex;gap:8px;align-items:flex-start;line-height:1.5;cursor:pointer">
+            <input type="checkbox" checked="{{autostart}}" onChange="{{toggleAutostart}}" style="width:16px;height:16px;margin:2px 0 0;accent-color:#F59A4A" />
+            <span><span style="font-weight:600;display:block">Mit Windows starten</span><span style="color:#9B9DA4">Lädt offene Stände sofort hoch.</span></span>
+          </label>
+        </main>
+      </sc-if>
+    </div>
+
+    <aside aria-label="Übersicht" style="flex:0 1 280px;min-width:240px;box-sizing:border-box;border-left:1px solid #2A2B30;background:#1C1D20;display:flex;flex-direction:column">
+      <section style="padding:24px;border-bottom:1px solid #2A2B30">
+        <h2 style="margin:0 0 16px;font-size:13px;font-weight:600;color:#9B9DA4">Aktueller Stand</h2>
+        <dl style="margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px">
+          <dt style="color:#9B9DA4">Version</dt><dd style="margin:0;font-weight:500;text-align:right">{{version}}</dd>
+          <dt style="color:#9B9DA4">Spielzeit</dt><dd style="margin:0;font-weight:500;text-align:right">{{playtime}}</dd>
+          <dt style="color:#9B9DA4">Gespeichert</dt><dd style="margin:0;font-weight:500;text-align:right">{{savedAt}}</dd>
+          <dt style="color:#9B9DA4">Von</dt><dd style="margin:0;font-weight:500;text-align:right">{{savedBy}}</dd>
+        </dl>
+      </section>
+      <section style="padding:24px 24px 16px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 8px">
+          <h2 style="margin:0;font-size:13px;font-weight:600;color:#9B9DA4">Gruppe</h2>
+          <span style="font-size:12px;color:#6C6E75">{{onlineCount}} von 5 online</span>
+        </div>
+        <ul style="list-style:none;margin:0;padding:0">
+          <sc-for list="{{crew}}" as="c" hint-placeholder-count="5">
+            <li style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:{{c.sep}}">
+              <span aria-hidden="true" style="width:32px;height:32px;flex-shrink:0;box-sizing:border-box;border-radius:6px;border:1px solid {{c.avBorder}};background:{{c.avBg}};color:{{c.avColor}};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600">{{c.initial}}</span>
+              <span style="display:flex;flex-direction:column;min-width:0">
+                <span style="font-weight:500;color:{{c.nameColor}}">{{c.name}}</span>
+                <span style="font-size:12px;color:{{c.statusColor}}">{{c.status}}</span>
+              </span>
+              <sc-if value="{{c.isHost}}" hint-placeholder-val="{{ false }}">
+                <span style="margin-left:auto;padding:0 8px;line-height:22px;border:1px solid #5A3A1F;border-radius:4px;font-size:12px;font-weight:500;color:#F59A4A">Host</span>
+              </sc-if>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+    </aside>
+  </div>
+
+  <footer style="height:32px;display:flex;align-items:center;gap:16px;padding:0 16px;border-top:1px solid #2A2B30;background:#1C1D20;font-size:12px;color:#9B9DA4">
+    <span style="color:{{hostColor}};font-weight:500">{{hostLine}}</span>
+    <span aria-hidden="true" style="width:1px;height:12px;background:#3A3B41"></span>
+    <span style="color:{{connColor}}">{{conn}}</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"zustand":{"editor":"enum","options":["bereit","verbinden","vorbereiten","hosten","mitspieler","hochladen","offline"],"default":"bereit"},"$preview":{"width":960,"height":600}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { z: null, p: 0, view: 'start', help: false, note: '', ver: 128, savedBy: 'Lena', savedAt: 'heute, 19:42', mins: 24738, histLoading: false, ask: null, restoreNote: '', platform: 'Steam', autostart: true, zoom: 1, sel: 'haupt', showSites: true, showPlayers: true };
+  }
+  cur() { return this.state.z ?? this.props.zustand ?? 'bereit'; }
+  componentDidMount() { this.enter(this.cur()); }
+  componentDidUpdate(prev, prevState) {
+    if (prev.zustand !== this.props.zustand && this.state.z !== null) { this.setState({ z: null, p: 0, note: '' }); return; }
+    const was = prevState.z ?? prev.zustand ?? 'bereit';
+    const z = this.cur();
+    if (z !== was) this.enter(z);
+  }
+  componentWillUnmount() { clearInterval(this.iv); clearTimeout(this.to); clearTimeout(this.hl); }
+  enter(z) {
+    clearInterval(this.iv); clearTimeout(this.to);
+    if (z === 'verbinden') this.to = setTimeout(() => this.setState({ z: 'bereit' }), 1200);
+    if (z === 'vorbereiten' || z === 'hochladen') {
+      this.setState({ p: 0 });
+      this.iv = setInterval(() => {
+        const n = Math.min(100, this.state.p + 5);
+        if (n < 100) return this.setState({ p: n });
+        clearInterval(this.iv);
+        if (z === 'vorbereiten') this.setState({ p: 100, z: 'hosten' });
+        else this.setState({ p: 100, z: 'bereit', ver: this.state.ver + 1, savedBy: 'Du', savedAt: 'gerade eben', mins: this.state.mins + 84, note: 'Version ' + (this.state.ver + 1) + ' gespeichert.' });
+      }, 110);
+    }
+  }
+  renderVals() {
+    const z = this.cur(), st = this.state, O = '#F59A4A';
+    const S = {
+      verbinden: { loading: true },
+      bereit: { title: 'Bereit zum Hosten', sub: 'Lädt Version ' + st.ver + ' und macht dich zum Host.', btn: 'Spielen und hosten', sec: 'Nur Spiel starten' },
+      vorbereiten: { title: 'Spielstand wird geladen', btn: 'Wird geladen', busy: true, prog: true },
+      hosten: { title: 'Spiel läuft', sub: 'Autosaves werden hochgeladen. Vor dem Beenden speichern.', btn: st.note === 'kopiert' ? 'Code kopiert' : 'Session-Code kopieren', sec: 'Spiel schließen (Demo)', ghost: true },
+      mitspieler: { title: 'Lena hostet', sub: st.help ? 'Spiel starten, Freundesliste öffnen, bei Lena auf „Beitreten“.' : 'Tritt über die Freundesliste bei.', btn: 'Spiel starten', sec: st.help ? 'Hilfe ausblenden' : 'Wie trete ich bei?' },
+      hochladen: { title: 'Fortschritt wird gesichert', btn: 'Wird hochgeladen', busy: true, prog: true },
+      offline: { title: 'Server nicht erreichbar', sub: 'Nach 2 Minuten darf ein anderer hosten. Dein Stand bleibt als Konfliktkopie erhalten.', subColor: '#F2B8B5', btn: 'Erneut verbinden', ghost: true }
+    }[z];
+    const primaryAct = {
+      bereit: () => this.setState({ z: 'vorbereiten', note: '' }),
+      hosten: () => this.setState({ note: 'kopiert' }),
+      mitspieler: () => this.setState({ note: 'Satisfactory wird gestartet.' }),
+      offline: () => this.setState({ z: 'verbinden' })
+    }[z] || (() => {});
+    const secondaryAct = {
+      bereit: () => this.setState({ note: 'Spiel wird gestartet, ohne zu hosten.' }),
+      hosten: () => this.setState({ z: 'hochladen', note: '' }),
+      mitspieler: () => this.setState({ help: !st.help })
+    }[z] || (() => {});
+    const host = z === 'mitspieler' ? 'Lena' : (['vorbereiten', 'hosten', 'hochladen'].includes(z) ? 'Du' : null);
+    const playing = !!host && z !== 'vorbereiten';
+    const people = [['Lena', true, ''], ['Max', true, ''], ['Jonas', true, ''], ['Du', true, ''], ['Tim', false, 'zuletzt vor 3 Std.']];
+    const crew = people.map(([n, on, seen], i) => {
+      const isHost = host === n;
+      const inGame = on && playing && (isHost || n === 'Max' || n === 'Jonas');
+      return {
+        name: n, initial: n === 'Du' ? 'Du' : n[0], isHost,
+        status: !on ? seen : (isHost ? 'hostet gerade' : (inGame ? 'im Spiel' : 'Launcher offen')),
+        sep: i < people.length - 1 ? '1px solid #26272B' : '0',
+        nameColor: on ? '#ECECEE' : '#6C6E75', statusColor: '#9B9DA4',
+        avBorder: isHost ? O : (on ? '#3A3B41' : '#2A2B30'), avBg: isHost ? '#2A1F16' : (on ? '#232428' : 'transparent'),
+        avColor: isHost ? O : (on ? '#ECECEE' : '#6C6E75')
+      };
+    });
+    const go = (v) => () => {
+      this.setState({ view: v, ask: null, restoreNote: '', histLoading: v === 'verlauf' });
+      clearTimeout(this.hl);
+      if (v === 'verlauf') this.hl = setTimeout(() => this.setState({ histLoading: false }), 700);
+    };
+    const tabs = [['start', 'Start'], ['verlauf', 'Verlauf'], ['einstellungen', 'Einstellungen']].map(([k, l]) => ({ label: l, go: go(k), current: st.view === k ? 'page' : 'false', line: st.view === k ? O : 'transparent', color: st.view === k ? '#ECECEE' : '#9B9DA4' }));
+
+    const siteData = [
+      ['haupt', 'Hauptfabrik', 420, 300, 22, '312 Maschinen. Stahl, Motoren und Computer.'],
+      ['oel', 'Ölraffinerie', 620, 140, 16, '48 Maschinen. Kunststoff und Gummi.'],
+      ['kraft', 'Kohlekraftwerk', 260, 420, 16, '24 Generatoren, 1.800 MW.'],
+      ['bahn', 'Bahnhof Ost', 800, 330, 14, 'Güterzug zur Hauptfabrik, alle 4 Minuten.']
+    ];
+    const playerData = [['Lena', 452, 330], ['Max', 650, 168], ['Jonas', 284, 444]];
+    const sites = st.showSites ? siteData.map(([id, name, x, y, size, info]) => ({
+      name, x, size, rx: x - size / 2, ry: y - size / 2, ty: y + size / 2 + 18,
+      fill: st.sel === id ? O : '#232428', stroke: st.sel === id ? O : '#6C6E75', labelColor: st.sel === id ? '#ECECEE' : '#9B9DA4',
+      pick: () => this.setState({ sel: id })
+    })) : [];
+    const players = st.showPlayers ? playerData.map(([n, x, y]) => ({ name: n, initial: n[0], x, y, ty: y + 4, stroke: st.sel === n ? O : '#9B9DA4', pick: () => this.setState({ sel: n }) })) : [];
+    let selName = '', selInfo = '';
+    const sd = siteData.find((s) => s[0] === st.sel);
+    if (sd) { selName = sd[1]; selInfo = sd[5]; }
+    const pd = playerData.find((x) => x[0] === st.sel);
+    if (pd) { selName = pd[0]; selInfo = playing ? 'Gerade hier unterwegs.' : 'Letzte Position im Spielstand ' + st.ver + '.'; }
+    const zm = st.zoom, cx = 520, cy = 300, w = 1040 / zm, h = 600 / zm;
+    const gridLines = [];
+    for (let x = 0; x <= 1040; x += 80) gridLines.push({ x1: x, y1: -100, x2: x, y2: 700 });
+    for (let y = 0; y <= 600; y += 80) gridLines.push({ x1: -100, y1: y, x2: 1140, y2: y });
+    const filters = [['showSites', 'Gebäude'], ['showPlayers', 'Spieler']].map(([k, l]) => ({ label: l, on: st[k] ? 'true' : 'false', border: st[k] ? '#5A3A1F' : '#2A2B30', color: st[k] ? O : '#9B9DA4', toggle: () => this.setState({ [k]: !st[k] }) }));
+
+    const blocked = z !== 'bereit';
+    const base = [
+      [st.ver, st.savedBy, 'hat gespeichert', st.savedAt],
+      [st.ver - 1, 'Lena', 'hat gespeichert', 'heute, 19:37'],
+      [st.ver - 2, 'Max', 'hat gespeichert', 'gestern, 23:10'],
+      ['K-3', 'Jonas', 'Konfliktkopie', 'gestern, 22:58'],
+      [st.ver - 3, 'Max', 'hat gespeichert', 'gestern, 22:41'],
+      [st.ver - 4, 'Du', 'hat gespeichert', 'Mo, 21:05']
+    ];
+    const rows = st.histLoading ? base.map(() => ({ skel: true, real: false })) : base.map(([num, who, what, time], i) => ({
+      skel: false, real: true, num: String(num), who, what, time, isHead: i === 0, canRestore: i !== 0,
+      numColor: i === 0 ? O : '#ECECEE', blocked, linkColor: blocked ? '#6C6E75' : O,
+      blockReason: blocked ? 'Geht nur, wenn niemand hostet.' : '',
+      ask: () => this.setState({ ask: String(num), restoreNote: '' })
+    }));
+    const hh = Math.floor(st.mins / 60), mm = st.mins % 60;
+    const platforms = ['Steam', 'Epic Games'].map((l) => ({ label: l, on: st.platform === l ? 'true' : 'false', border: st.platform === l ? O : '#3A3B41', bg: st.platform === l ? '#2A1F16' : '#1C1D20', pick: () => this.setState({ platform: l }) }));
+    const L = !!S.loading;
+    const note = st.note && st.note !== 'kopiert' ? st.note : '';
+    const sub = note || S.sub || '';
+    return {
+      tabs, crew, rows, platforms, sites, players, gridLines, filters,
+      onlineCount: String(people.filter((x) => x[1]).length),
+      viewBox: (cx - w / 2) + ' ' + (cy - h / 2) + ' ' + w + ' ' + h,
+      zoomIn: () => this.setState({ zoom: Math.min(3, +(st.zoom + 0.5).toFixed(1)) }),
+      zoomOut: () => this.setState({ zoom: Math.max(1, +(st.zoom - 0.5).toFixed(1)) }),
+      hasSel: !!selName, selName, selInfo, clearSel: () => this.setState({ sel: null }),
+      isStart: st.view === 'start', isVerlauf: st.view === 'verlauf', isSettings: st.view === 'einstellungen',
+      isLoadingStatus: L, showStatus: !L,
+      title: S.title || '', hasSub: !!sub && !S.prog, sub, subColor: note ? '#ECECEE' : (S.subColor || '#9B9DA4'),
+      btn: S.btn || '', busy: !!S.busy, primary: primaryAct,
+      btnBg: S.busy ? '#26272B' : (S.ghost ? '#1C1D20' : O), btnColor: S.busy ? '#C9CACF' : (S.ghost ? '#ECECEE' : '#1B1006'), btnBorder: S.busy ? '#26272B' : (S.ghost ? '#3A3B41' : O),
+      hasSecondary: !!S.sec, secondaryLabel: S.sec || '', secondary: secondaryAct,
+      hasProgress: !!S.prog, p: st.p, pWidth: st.p + '%',
+      version: String(st.ver), playtime: hh + ' h ' + mm + ' min', savedAt: st.savedAt, savedBy: st.savedBy,
+      restoreAsk: !!st.ask, restoreNum: st.ask || '',
+      cancelRestore: () => this.setState({ ask: null }),
+      confirmRestore: () => this.setState({ restoreNote: 'Version ' + st.ask + ' ist jetzt aktuell (als ' + (st.ver + 1) + ').', ask: null, ver: st.ver + 1, savedBy: 'Du', savedAt: 'gerade eben' }),
+      hasRestoreNote: !!st.restoreNote, restoreNote: st.restoreNote,
+      saveDir: st.platform === 'Steam' ? 'C:\\Users\\…\\AppData\\Local\\FactoryGame\\Saved\\SaveGames\\76561198…' : 'C:\\Users\\…\\AppData\\Local\\FactoryGame\\Saved\\SaveGames\\8f3c1a…',
+      autostart: st.autostart, toggleAutostart: () => this.setState({ autostart: !st.autostart }),
+      hostLine: L ? 'Status wird geladen' : (host === 'Du' ? 'Du hostest' : (host ? host + ' hostet' : 'Niemand hostet')),
+      hostColor: host ? O : '#ECECEE',
+      conn: z === 'offline' ? 'Keine Verbindung, neuer Versuch in 10 s' : (L ? 'Verbinde mit Server …' : 'Mit Server verbunden, 24 ms'),
+      connColor: z === 'offline' ? '#F2B8B5' : '#9B9DA4'
+    };
+  }
+}
+</script>
+</body>
+</html>
